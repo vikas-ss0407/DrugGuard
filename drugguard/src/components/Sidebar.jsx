@@ -8,14 +8,10 @@ export default function Sidebar({ userRole }) {
   const menuItems = {
     inspector: [
       { label: 'Dashboard', path: '/inspector/dashboard', icon: '📊' },
-      { label: 'Create Wholesaler', path: '/inspector/create-wholesaler', icon: '➕' },
-      { label: 'Create Retailer', path: '/inspector/create-retailer', icon: '➕' },
-      { label: 'License Verification', path: '/inspector/license-verification', icon: '✓' },
+      { label: 'Create New License', path: '/inspector/create-license', icon: '➕' },
+      { label: 'Update Shop Details', path: '/inspector/update-shop', icon: '✏️' },
       { label: 'Wholesaler Sales', path: '/inspector/view-wholesaler-sales', icon: '📈' },
-      { label: 'Retailer Purchases', path: '/inspector/view-retailer-purchases', icon: '📦' },
-      { label: 'Stock Movement', path: '/inspector/stock-movement', icon: '🚚' },
-      { label: 'Compliance Reports', path: '/inspector/compliance-reports', icon: '📋' },
-      { label: 'Audit Logs', path: '/inspector/audit-logs', icon: '📝' }
+      { label: 'Retailer Purchases', path: '/inspector/view-retailer-purchases', icon: '📦' }
     ],
     wholesaler: [
       { label: 'Dashboard', path: '/wholesaler/dashboard', icon: '📊' },
@@ -46,7 +42,7 @@ export default function Sidebar({ userRole }) {
   const isActive = (path) => location.pathname === path
 
   return (
-    <div className={`bg-slate-800 text-white transition-all duration-300 h-full sticky top-20 overflow-y-auto ${isExpanded ? 'w-64' : 'w-20'}`}>
+    <div className={`bg-slate-800 text-white transition-all duration-300 min-h-screen sticky top-20 overflow-y-auto ${isExpanded ? 'w-64' : 'w-20'}`}>
       {/* Toggle Button */}
       <div className="p-4 border-b border-slate-700">
         <button

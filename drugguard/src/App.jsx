@@ -12,14 +12,10 @@ import Login from './components/Login'
 
 // Drug Inspector Components
 import DIDashboard from './druginspector/DrugDashboard'
-import CreateWholesaler from './druginspector/CreateWholesaler'
-import CreateRetailer from './druginspector/CreateRetailer'
-import LicenseVerification from './druginspector/LicenseVerification'
+import CreateLicense from './druginspector/CreateLicense'
+import UpdateShopDetails from './druginspector/UpdateShopDetails'
 import ViewWholesalerSales from './druginspector/ViewWholesalerSales'
 import ViewRetailerPurchases from './druginspector/ViewRetailerPurchases'
-import StockMovementReports from './druginspector/StockMovementReports'
-import ComplianceReports from './druginspector/ComplianceReports'
-import AuditLogs from './druginspector/AuditLogs'
 
 // Wholesaler Components
 import WholesalerDashboard from './wholesaler/WholesalerDashboard'
@@ -70,14 +66,10 @@ function App() {
             {userRole === 'inspector' && (
               <>
                 <Route path="/inspector/dashboard" element={<DIDashboard />} />
-                <Route path="/inspector/create-wholesaler" element={<CreateWholesaler />} />
-                <Route path="/inspector/create-retailer" element={<CreateRetailer />} />
-                <Route path="/inspector/license-verification" element={<LicenseVerification />} />
+                <Route path="/inspector/create-license" element={<CreateLicense />} />
+                <Route path="/inspector/update-shop" element={<UpdateShopDetails />} />
                 <Route path="/inspector/view-wholesaler-sales" element={<ViewWholesalerSales />} />
                 <Route path="/inspector/view-retailer-purchases" element={<ViewRetailerPurchases />} />
-                <Route path="/inspector/stock-movement" element={<StockMovementReports />} />
-                <Route path="/inspector/compliance-reports" element={<ComplianceReports />} />
-                <Route path="/inspector/audit-logs" element={<AuditLogs />} />
               </>
             )}
 

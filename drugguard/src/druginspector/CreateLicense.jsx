@@ -19,16 +19,26 @@ export default function CreateLicense() {
     mobileNumber: '',
     email: '',
     
+    // Owner Documents
+    ownerPanCard: '',
+    ownerAadharNumber: '',
+    ownerAadharCardImage: null,
+    
     // B. Pharmacist / Competent Person Details
     pharmacistName: '',
     registrationId: '',
     qualification: '', // D.Pharm / B.Pharm / M.Pharm
     yearsOfExperience: '',
+    pharmacistDateOfBirth: '',
     aadhaarNumber: '',
     pharmacistMobile: '',
     pharmacistEmail: '',
     employmentType: '', // Full-time / Part-time
     appointmentDocument: null,
+    
+    // Pharmacist Documents
+    pharmacistCertificate: null,
+    pharmacistSignatureImage: null,
     
     // C. Shop Infrastructure Details
     totalShopArea: '',
@@ -56,7 +66,8 @@ export default function CreateLicense() {
     
     // System Generated
     licenseNumber: '',
-    generatedPassword: ''
+    generatedPassword: '',
+    licenseCreationDate: new Date().toLocaleDateString()
   })
 
   const [errors, setErrors] = useState({})
@@ -67,7 +78,7 @@ export default function CreateLicense() {
     const districtCode = formData.district.substring(0, 3).toUpperCase()
     const typeCode = formData.licenseType === 'Wholesale' ? 'WS' : 'RT'
     const randomNum = Math.floor(10000 + Math.random() * 90000)
-    return `${districtCode}/${typeCode}/${year}/${randomNum}`
+    return `DG-${districtCode}/${typeCode}/${year}/${randomNum}`
   }
 
   // Generate Random Password
@@ -78,6 +89,168 @@ export default function CreateLicense() {
       password += chars.charAt(Math.floor(Math.random() * chars.length))
     }
     return password
+  }
+
+  // Generate License Document
+  const generateLicenseDocument = (licenseNumber) => {
+    const licenseContent = `
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          DRUG GUARD SYSTEM                                     ║
+║                    PHARMACY LICENSE CERTIFICATE                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+LICENSE NUMBER: ${licenseNumber}
+ISSUE DATE: ${new Date().toLocaleDateString()}
+EXPIRY DATE: ${new Date(new Date().setFullYear(new Date().getFullYear() + 5)).toLocaleDateString()}
+
+───────────────────────────────────────────────────────────────────────────────────
+
+🏪 ESTABLISHMENT DETAILS
+───────────────────────────────────────────────────────────────────────────────────
+Shop/Firm Name         : ${formData.shopFirmName}
+License Type           : ${formData.licenseType}
+Ownership Type         : ${formData.ownershipType}
+Total Shop Area        : ${formData.totalShopArea} Sq.ft
+
+ADDRESS:
+  Door No.             : ${formData.doorNo}
+  Area                 : ${formData.area}
+  City/Town            : ${formData.city}
+  Post                 : ${formData.post}
+  District             : ${formData.district}
+  State                : ${formData.state}
+  PIN Code             : ${formData.pinCode}
+
+───────────────────────────────────────────────────────────────────────────────────
+
+👤 OWNER DETAILS
+───────────────────────────────────────────────────────────────────────────────────
+Owner Name             : ${formData.fullName}
+Date of Birth          : ${formData.dateOfBirth}
+PAN Card No.           : ${formData.ownerPanCard}
+Aadhaar Card No.       : ${formData.ownerAadharNumber}
+Mobile Number          : ${formData.mobileNumber}
+Email                  : ${formData.email}
+
+Documents Attached:
+  ✓ PAN Card Copy
+  ✓ Aadhaar Card Image
+  ✓ Identity Proof
+
+───────────────────────────────────────────────────────────────────────────────────
+
+💊 PHARMACIST / COMPETENT PERSON DETAILS
+───────────────────────────────────────────────────────────────────────────────────
+Pharmacist Name        : ${formData.pharmacistName}
+Registration ID        : ${formData.registrationId}
+Qualification          : ${formData.qualification}
+Date of Birth          : ${formData.pharmacistDateOfBirth}
+Aadhaar Number         : ${maskAadhaar(formData.aadhaarNumber)}
+Years of Experience    : ${formData.yearsOfExperience} years
+Employment Type        : ${formData.employmentType}
+Mobile Number          : ${formData.pharmacistMobile}
+Email                  : ${formData.pharmacistEmail}
+
+Documents Attached:
+  ✓ Pharmacist Certificate (${formData.qualification})
+  ✓ Signature Image
+  ✓ Appointment Letter
+  ✓ Registration Certificate from State Pharmacy Council
+
+───────────────────────────────────────────────────────────────────────────────────
+
+🏭 SHOP INFRASTRUCTURE
+───────────────────────────────────────────────────────────────────────────────────
+Total Shop Area        : ${formData.totalShopArea} Sq.ft
+Shop Dimensions        : ${formData.shopLength}ft × ${formData.shopBreadth}ft
+Storage Area Available : ${formData.storageAreaAvailable ? 'YES' : 'NO'}
+Separate Drug Storage  : ${formData.separateScheduleDrugStorage ? 'YES' : 'NO'}
+Power Backup Available : ${formData.powerBackupAvailable ? 'YES' : 'NO'}
+
+───────────────────────────────────────────────────────────────────────────────────
+
+⚙️ EQUIPMENT & STORAGE
+───────────────────────────────────────────────────────────────────────────────────
+${formData.acAvailable ? `
+Air Conditioning Unit:
+  Brand                : ${formData.acBrand}
+  Model                : ${formData.acModel}
+  Capacity             : ${formData.acCapacity} Ton
+` : `Air Conditioning Unit  : NOT AVAILABLE\n`}
+${formData.refrigeratorAvailable ? `
+Refrigerator/Cold Storage:
+  Brand                : ${formData.refrigeratorBrand}
+  Model                : ${formData.refrigeratorModel}
+  Capacity             : ${formData.refrigeratorCapacity} Liters
+  Temperature Range    : ${formData.refrigeratorTempRange}
+` : `Refrigerator/Storage   : NOT AVAILABLE\n`}
+
+───────────────────────────────────────────────────────────────────────────────────
+
+📋 COMPLIANCE CHECKLIST
+───────────────────────────────────────────────────────────────────────────────────
+✓ Owner Identification Documents Verified
+✓ Pharmacist Credentials Verified
+✓ Registration Certificate Verified
+✓ Shop Infrastructure Inspected
+✓ Storage Facilities Approved
+✓ Equipment Details Recorded
+✓ All Required Documents Attached
+✓ Compliance Standards Met
+
+───────────────────────────────────────────────────────────────────────────────────
+
+🔐 LOGIN CREDENTIALS
+───────────────────────────────────────────────────────────────────────────────────
+Login Email            : ${formData.loginEmail}
+Temporary Password     : [Provided Separately]
+Account Status         : ACTIVE
+Renewal Date           : ${new Date(new Date().setFullYear(new Date().getFullYear() + 5)).toLocaleDateString()}
+
+───────────────────────────────────────────────────────────────────────────────────
+
+⚖️ IMPORTANT NOTICES
+───────────────────────────────────────────────────────────────────────────────────
+1. This license is valid for 5 years from the date of issue.
+2. The pharmacy must comply with all rules and regulations of the pharmaceutical board.
+3. Any changes in ownership, pharmacist, or premises must be reported immediately.
+4. The pharmacy must maintain proper records of all drugs purchased and sold.
+5. Storage conditions must be maintained as per regulatory standards.
+6. License must be displayed prominently in the pharmacy premises.
+7. Renewal application must be submitted 3 months before expiry.
+
+───────────────────────────────────────────────────────────────────────────────────
+
+📄 DOCUMENTS ATTACHED WITH LICENSE
+───────────────────────────────────────────────────────────────────────────────────
+✓ PAN Card of Owner
+✓ Aadhaar Card Image of Owner
+✓ Pharmacist Degree Certificate
+✓ Pharmacist Signature Image
+✓ Pharmacist Appointment Letter
+✓ Registration Certificate from State Pharmacy Council
+✓ Shop Infrastructure Photos
+✓ Equipment Details & Photos
+✓ Permission from Local Authorities
+✓ Premises Inspection Report
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+This License has been generated by Drug Guard System.
+For any queries, contact: support@drugguard.com | Ph: 1800-DRUGGUARD
+
+Authorized by: Drug Inspector Division
+Generated on: ${new Date().toLocaleString()}
+System Version: 1.0
+
+═══════════════════════════════════════════════════════════════════════════════════
+    `
+    return licenseContent
+  }
+
+  const maskAadhaar = (aadhar) => {
+    if (!aadhar) return ''
+    return aadhar.slice(0, 4) + ' ' + '*'.repeat(4) + ' ' + aadhar.slice(-4)
   }
 
   const handleInputChange = (e) => {
@@ -114,15 +287,21 @@ export default function CreateLicense() {
       if (!formData.pinCode) newErrors.pinCode = 'PIN code is required'
       if (!formData.mobileNumber) newErrors.mobileNumber = 'Mobile number is required'
       if (!formData.email) newErrors.email = 'Email is required'
+      if (!formData.ownerPanCard) newErrors.ownerPanCard = 'PAN Card number is required'
+      if (!formData.ownerAadharNumber) newErrors.ownerAadharNumber = 'Aadhaar number is required'
+      if (!formData.ownerAadharCardImage) newErrors.ownerAadharCardImage = 'Aadhaar card image is required'
     } else if (step === 2) {
       if (!formData.pharmacistName) newErrors.pharmacistName = 'Pharmacist name is required'
       if (!formData.registrationId) newErrors.registrationId = 'Registration ID is required'
       if (!formData.qualification) newErrors.qualification = 'Qualification is required'
       if (!formData.yearsOfExperience) newErrors.yearsOfExperience = 'Experience is required'
+      if (!formData.pharmacistDateOfBirth) newErrors.pharmacistDateOfBirth = 'Pharmacist date of birth is required'
       if (!formData.aadhaarNumber) newErrors.aadhaarNumber = 'Aadhaar number is required'
       if (!formData.pharmacistMobile) newErrors.pharmacistMobile = 'Mobile number is required'
       if (!formData.pharmacistEmail) newErrors.pharmacistEmail = 'Email is required'
       if (!formData.employmentType) newErrors.employmentType = 'Employment type is required'
+      if (!formData.pharmacistCertificate) newErrors.pharmacistCertificate = 'Pharmacist certificate is required'
+      if (!formData.pharmacistSignatureImage) newErrors.pharmacistSignatureImage = 'Pharmacist signature image is required'
     } else if (step === 3) {
       if (!formData.totalShopArea) newErrors.totalShopArea = 'Total shop area is required'
       if (!formData.shopLength) newErrors.shopLength = 'Shop length is required'
@@ -165,20 +344,37 @@ export default function CreateLicense() {
       // Generate license number and password
       const licenseNumber = generateLicenseNumber()
       const generatedPassword = generatePassword()
+      const licenseDocument = generateLicenseDocument(licenseNumber)
       
       const finalData = {
         ...formData,
         licenseNumber,
-        generatedPassword
+        generatedPassword,
+        licenseDocument
       }
+      
+      // Download license as text file
+      const element = document.createElement('a')
+      const file = new Blob([licenseDocument], {type: 'text/plain'})
+      element.href = URL.createObjectURL(file)
+      element.download = `LICENSE_${licenseNumber.replace(/\//g, '_')}_${new Date().getTime()}.txt`
+      document.body.appendChild(element)
+      element.click()
+      document.body.removeChild(element)
       
       // Show success message with credentials
       alert(
-        `License Created Successfully!\n\n` +
+        `✅ LICENSE GENERATED SUCCESSFULLY!\n\n` +
         `License Number: ${licenseNumber}\n` +
-        `Login Email: ${formData.loginEmail}\n` +
-        `Password: ${formData.loginPassword}\n\n` +
-        `Please save these credentials securely.`
+        `Pharmacy: ${formData.shopFirmName}\n` +
+        `Owner: ${formData.fullName}\n` +
+        `Pharmacist: ${formData.pharmacistName}\n\n` +
+        `LOGIN CREDENTIALS:\n` +
+        `Email: ${formData.loginEmail}\n` +
+        `Temporary Password: ${formData.loginPassword}\n\n` +
+        `License Document has been downloaded!\n` +
+        `Please save all documents securely.\n` +
+        `License is valid for 5 years.`
       )
       
       console.log('License Data:', finalData)
@@ -187,13 +383,17 @@ export default function CreateLicense() {
       setFormData({
         fullName: '', dateOfBirth: '', licenseType: '', shopFirmName: '', ownershipType: '',
         doorNo: '', area: '', city: '', post: '', district: '', state: '', pinCode: '',
-        mobileNumber: '', email: '', pharmacistName: '', registrationId: '', qualification: '',
-        yearsOfExperience: '', aadhaarNumber: '', pharmacistMobile: '', pharmacistEmail: '',
-        employmentType: '', appointmentDocument: null, totalShopArea: '', shopLength: '',
-        shopBreadth: '', storageAreaAvailable: false, separateScheduleDrugStorage: false,
-        powerBackupAvailable: false, acAvailable: false, acBrand: '', acModel: '', acCapacity: '',
-        refrigeratorAvailable: false, refrigeratorBrand: '', refrigeratorModel: '',
-        refrigeratorCapacity: '', refrigeratorTempRange: '', licenseNumber: '', generatedPassword: ''
+        mobileNumber: '', email: '', ownerPanCard: '', ownerAadharNumber: '', 
+        ownerAadharCardImage: null, pharmacistName: '', registrationId: '', qualification: '',
+        yearsOfExperience: '', pharmacistDateOfBirth: '', aadhaarNumber: '', 
+        pharmacistMobile: '', pharmacistEmail: '', employmentType: '', appointmentDocument: null,
+        pharmacistCertificate: null, pharmacistSignatureImage: null,
+        totalShopArea: '', shopLength: '', shopBreadth: '', storageAreaAvailable: false, 
+        separateScheduleDrugStorage: false, powerBackupAvailable: false, acAvailable: false, 
+        acBrand: '', acModel: '', acCapacity: '', refrigeratorAvailable: false, 
+        refrigeratorBrand: '', refrigeratorModel: '', refrigeratorCapacity: '', 
+        refrigeratorTempRange: '', loginEmail: '', loginPassword: '', confirmPassword: '', 
+        licenseNumber: '', generatedPassword: '', licenseCreationDate: new Date().toLocaleDateString()
       })
       setStep(1)
     } else {
@@ -212,14 +412,14 @@ export default function CreateLicense() {
 
         {/* Progress Steps */}
         <div className="flex justify-between mb-8">
-          {['Establishment Details', 'Pharmacist Details', 'Infrastructure', 'Equipment & Storage'].map((label, idx) => (
+          {['Establishment Details', 'Pharmacist Details', 'Infrastructure', 'Equipment & Storage', 'Login Credentials'].map((label, idx) => (
             <div key={idx} className="flex items-center flex-1">
               <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
                 step > idx + 1 ? 'bg-green-500 text-white' : step === idx + 1 ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
               }`}>
                 {step > idx + 1 ? '✓' : idx + 1}
               </div>
-              {idx < 3 && <div className={`flex-1 h-1 mx-2 ${step > idx + 1 ? 'bg-green-500' : 'bg-slate-700'}`}></div>}
+              {idx < 4 && <div className={`flex-1 h-1 mx-2 ${step > idx + 1 ? 'bg-green-500' : 'bg-slate-700'}`}></div>}
               <p className="text-sm text-slate-400 ml-2">{label}</p>
             </div>
           ))}
@@ -393,6 +593,52 @@ export default function CreateLicense() {
               </div>
 
               <div className="border-t border-slate-700 pt-6 mt-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Owner Documents & Identification</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-slate-300 mb-2">PAN Card Number *</label>
+                    <input
+                      type="text"
+                      name="ownerPanCard"
+                      value={formData.ownerPanCard}
+                      onChange={handleInputChange}
+                      placeholder="e.g., AAAPA1234A"
+                      maxLength="10"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors.ownerPanCard && <p className="text-red-400 text-sm mt-1">{errors.ownerPanCard}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 mb-2">Aadhaar Card Number *</label>
+                    <input
+                      type="text"
+                      name="ownerAadharNumber"
+                      value={formData.ownerAadharNumber}
+                      onChange={handleInputChange}
+                      maxLength="12"
+                      placeholder="XXXX XXXX XXXX"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors.ownerAadharNumber && <p className="text-red-400 text-sm mt-1">{errors.ownerAadharNumber}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-slate-300 mb-2">Aadhaar Card Image/Copy *</label>
+                    <input
+                      type="file"
+                      name="ownerAadharCardImage"
+                      onChange={handleFileChange}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors.ownerAadharCardImage && <p className="text-red-400 text-sm mt-1">{errors.ownerAadharCardImage}</p>}
+                    <p className="text-slate-500 text-xs mt-1">Upload clear image/scan (PDF, JPG, PNG - Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700 pt-6 mt-6">
                 <h3 className="text-xl font-semibold text-white mb-4">Contact Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -524,6 +770,18 @@ export default function CreateLicense() {
                 </div>
 
                 <div>
+                  <label className="block text-slate-300 mb-2">Date of Birth *</label>
+                  <input
+                    type="date"
+                    name="pharmacistDateOfBirth"
+                    value={formData.pharmacistDateOfBirth}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.pharmacistDateOfBirth && <p className="text-red-400 text-sm mt-1">{errors.pharmacistDateOfBirth}</p>}
+                </div>
+
+                <div>
                   <label className="block text-slate-300 mb-2">Employment Type *</label>
                   <select
                     name="employmentType"
@@ -536,6 +794,32 @@ export default function CreateLicense() {
                     <option value="Part-time">Part-time</option>
                   </select>
                   {errors.employmentType && <p className="text-red-400 text-sm mt-1">{errors.employmentType}</p>}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-slate-300 mb-2">Pharmacist Degree Certificate ({formData.qualification}) *</label>
+                  <input
+                    type="file"
+                    name="pharmacistCertificate"
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.pharmacistCertificate && <p className="text-red-400 text-sm mt-1">{errors.pharmacistCertificate}</p>}
+                  <p className="text-slate-500 text-xs mt-1">Upload certificate/degree document (PDF, JPG, PNG - Max 5MB)</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-slate-300 mb-2">Pharmacist Signature Image *</label>
+                  <input
+                    type="file"
+                    name="pharmacistSignatureImage"
+                    onChange={handleFileChange}
+                    accept=".jpg,.jpeg,.png"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.pharmacistSignatureImage && <p className="text-red-400 text-sm mt-1">{errors.pharmacistSignatureImage}</p>}
+                  <p className="text-slate-500 text-xs mt-1">Upload high-quality signature image (JPG, PNG - Max 5MB)</p>
                 </div>
 
                 <div className="md:col-span-2">
@@ -762,6 +1046,56 @@ export default function CreateLicense() {
             </div>
           )}
 
+          {/* Step 5: Login Credentials */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-white mb-6">E. Login Credentials</h2>
+              <p className="text-slate-400 mb-6">Create login credentials for this shop. This will be used to access the system.</p>
+              
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="block text-slate-300 mb-2">Login Email *</label>
+                  <input
+                    type="email"
+                    name="loginEmail"
+                    value={formData.loginEmail}
+                    onChange={handleInputChange}
+                    placeholder="Enter email for login"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.loginEmail && <p className="text-red-400 text-sm mt-1">{errors.loginEmail}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 mb-2">Password *</label>
+                  <input
+                    type="password"
+                    name="loginPassword"
+                    value={formData.loginPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter password (min 8 characters)"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.loginPassword && <p className="text-red-400 text-sm mt-1">{errors.loginPassword}</p>}
+                  <p className="text-slate-500 text-xs mt-1">Password must be at least 8 characters long</p>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 mb-2">Confirm Password *</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Re-enter password"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.confirmPassword && <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
             {step > 1 && (
@@ -774,7 +1108,7 @@ export default function CreateLicense() {
               </button>
             )}
             
-            {step < 4 ? (
+            {step < 5 ? (
               <button
                 type="button"
                 onClick={handleNext}
