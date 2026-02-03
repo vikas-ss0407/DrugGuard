@@ -31,14 +31,21 @@ export default function UpdateShopDetails() {
     pinCode: '',
     mobileNumber: '',
     email: '',
+    ownerPanCard: '',
+    ownerAadharNumber: '',
+    ownerAadharCardImage: null,
     pharmacistName: '',
     registrationId: '',
     qualification: '',
     yearsOfExperience: '',
+    pharmacistDateOfBirth: '',
     aadhaarNumber: '',
     pharmacistMobile: '',
     pharmacistEmail: '',
     employmentType: '',
+    pharmacistCertificate: null,
+    pharmacistSignatureImage: null,
+    appointmentDocument: null,
     totalShopArea: '',
     shopLength: '',
     shopBreadth: '',
@@ -54,6 +61,9 @@ export default function UpdateShopDetails() {
     refrigeratorModel: '',
     refrigeratorCapacity: '',
     refrigeratorTempRange: '',
+    loginEmail: '',
+    loginPassword: '',
+    confirmPassword: '',
   })
 
   const filteredShops = allShops.filter(shop => {
@@ -87,14 +97,21 @@ export default function UpdateShopDetails() {
       pinCode: '600040',
       mobileNumber: shop.phone,
       email: shop.email,
+      ownerPanCard: 'AAAPA1234A',
+      ownerAadharNumber: '1234 5678 9012',
+      ownerAadharCardImage: null,
       pharmacistName: 'Dr. Ramesh Kumar',
       registrationId: 'TN/PHARM/2020/12345',
       qualification: 'B.Pharm',
       yearsOfExperience: '5',
+      pharmacistDateOfBirth: '1985-05-15',
       aadhaarNumber: '1234 5678 9012',
       pharmacistMobile: '9876543230',
       pharmacistEmail: 'pharmacist@example.com',
       employmentType: 'Full-time',
+      pharmacistCertificate: null,
+      pharmacistSignatureImage: null,
+      appointmentDocument: null,
       totalShopArea: '500',
       shopLength: '25',
       shopBreadth: '20',
@@ -110,6 +127,9 @@ export default function UpdateShopDetails() {
       refrigeratorModel: 'RT28',
       refrigeratorCapacity: '253',
       refrigeratorTempRange: '2°C to 8°C',
+      loginEmail: shop.email,
+      loginPassword: '',
+      confirmPassword: '',
     })
     setView('update')
   }
@@ -119,6 +139,14 @@ export default function UpdateShopDetails() {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: files[0]
     }))
   }
 
@@ -381,6 +409,49 @@ export default function UpdateShopDetails() {
               </div>
 
               <div className="border-t border-slate-700 pt-6 mt-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Owner Documents & Identification</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-slate-300 mb-2">PAN Card Number</label>
+                    <input
+                      type="text"
+                      name="ownerPanCard"
+                      value={formData.ownerPanCard}
+                      onChange={handleInputChange}
+                      placeholder="e.g., AAAPA1234A"
+                      maxLength="10"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 mb-2">Aadhaar Card Number</label>
+                    <input
+                      type="text"
+                      name="ownerAadharNumber"
+                      value={formData.ownerAadharNumber}
+                      onChange={handleInputChange}
+                      maxLength="12"
+                      placeholder="XXXX XXXX XXXX"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-slate-300 mb-2">Aadhaar Card Image/Copy</label>
+                    <input
+                      type="file"
+                      name="ownerAadharCardImage"
+                      onChange={handleFileChange}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-slate-500 text-xs mt-1">Upload clear image/scan (PDF, JPG, PNG - Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700 pt-6 mt-6">
                 <h3 className="text-xl font-semibold text-white mb-4">Contact Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -456,6 +527,16 @@ export default function UpdateShopDetails() {
                   />
                 </div>
                 <div>
+                  <label className="block text-slate-300 mb-2">Date of Birth</label>
+                  <input
+                    type="date"
+                    name="pharmacistDateOfBirth"
+                    value={formData.pharmacistDateOfBirth}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
                   <label className="block text-slate-300 mb-2">Mobile Number</label>
                   <input
                     type="tel"
@@ -487,6 +568,42 @@ export default function UpdateShopDetails() {
                     <option value="Full-time">Full-time</option>
                     <option value="Part-time">Part-time</option>
                   </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-slate-300 mb-2">Pharmacist Degree Certificate ({formData.qualification})</label>
+                  <input
+                    type="file"
+                    name="pharmacistCertificate"
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-slate-500 text-xs mt-1">Upload certificate/degree document (PDF, JPG, PNG - Max 5MB)</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-slate-300 mb-2">Pharmacist Signature Image</label>
+                  <input
+                    type="file"
+                    name="pharmacistSignatureImage"
+                    onChange={handleFileChange}
+                    accept=".jpg,.jpeg,.png"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-slate-500 text-xs mt-1">Upload high-quality signature image (JPG, PNG - Max 5MB)</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-slate-300 mb-2">Appointment Letter / Consent Document</label>
+                  <input
+                    type="file"
+                    name="appointmentDocument"
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-slate-500 text-xs mt-1">Accepted formats: PDF, JPG, PNG (Max 5MB)</p>
                 </div>
               </div>
             </div>
@@ -670,6 +787,55 @@ export default function UpdateShopDetails() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* E. Login Credentials */}
+            <div className="bg-slate-800 rounded-lg p-8 border border-slate-700">
+              <h2 className="text-2xl font-bold text-white mb-6">E. Login Credentials</h2>
+              <p className="text-slate-400 mb-6">Update login email and password for this shop account</p>
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="block text-slate-300 mb-2">Login Email</label>
+                  <input
+                    type="email"
+                    name="loginEmail"
+                    value={formData.loginEmail}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 mb-2">New Password (Leave blank to keep current password)</label>
+                  <input
+                    type="password"
+                    name="loginPassword"
+                    value={formData.loginPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter new password (min 8 characters)"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-slate-500 text-xs mt-1">Password must be at least 8 characters long with uppercase, lowercase, numbers and special characters</p>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 mb-2">Confirm Password</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Re-enter password"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                  <p className="text-blue-300 text-sm">
+                    <span className="font-semibold">Note:</span> Passwords are encrypted and securely stored. Users must change password on first login.
+                  </p>
+                </div>
               </div>
             </div>
 
