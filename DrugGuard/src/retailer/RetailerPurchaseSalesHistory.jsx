@@ -7,6 +7,9 @@ export default function RetailerPurchaseSalesHistory() {
     { id: 5, type: 'Purchase', reference: 'WHL-003-2024', entity: 'Prime Pharmaceuticals', drug: 'Ibuprofen 400mg', quantity: 1000, amount: '₹30,000', date: '2024-02-01', status: 'Delivered' }
   ]
 
+  const purchaseTransactions = transactions.filter(tx => tx.type === 'Purchase')
+  const salesTransactions = transactions.filter(tx => tx.type === 'Sale')
+
   const stats = [
     { label: 'Total Purchases', value: '₹51,000', icon: '🛒' },
     { label: 'Total Sales', value: '₹4,000', icon: '💳' },
@@ -18,8 +21,8 @@ export default function RetailerPurchaseSalesHistory() {
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
       <div className="w-full">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Purchase & Sales History</h1>
-          <p className="text-slate-400">View all your purchase and sales transactions</p>
+          <h1 className="text-3xl font-bold text-white mb-2">History</h1>
+          <p className="text-slate-400">View your purchase history and sales history separately</p>
         </div>
 
         {/* Stats */}
@@ -35,65 +38,81 @@ export default function RetailerPurchaseSalesHistory() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700 flex gap-4 flex-wrap">
-          <input
-            type="text"
-            placeholder="Search reference..."
-            className="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select className="px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Transactions</option>
-            <option>Purchases Only</option>
-            <option>Sales Only</option>
-          </select>
-          <input
-            type="date"
-            className="px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* Purchase History */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Purchase History</h2>
+          <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Reference</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Wholesaler</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Drug</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Amount</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchaseTransactions.map((tx) => (
+                    <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.entity}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.drug}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.quantity} units</td>
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.date}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-semibold">
+                          {tx.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-700">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Type</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Reference</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Entity</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Drug</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Amount</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                        tx.type === 'Purchase' ? 'bg-blue-600' : 'bg-green-600'
-                      }`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
-                    <td className="px-6 py-4 text-slate-300">{tx.entity}</td>
-                    <td className="px-6 py-4 text-slate-300">{tx.drug}</td>
-                    <td className="px-6 py-4 text-slate-300">{tx.quantity} units</td>
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
-                    <td className="px-6 py-4 text-slate-300">{tx.date}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold">
-                        {tx.status}
-                      </span>
-                    </td>
+        {/* Sales History */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Sales History</h2>
+          <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Reference</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Customer</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Drug</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Amount</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {salesTransactions.map((tx) => (
+                    <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.entity}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.drug}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.quantity} units</td>
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.date}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-semibold">
+                          {tx.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

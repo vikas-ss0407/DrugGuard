@@ -27,7 +27,8 @@ export default function Sidebar({ userRole }) {
       { label: 'Approve Stock', path: '/retailer/approve-stock', icon: '✓' },
       { label: 'Sell to Customer', path: '/retailer/sell-to-customer', icon: '💳' },
       { label: 'Return Product', path: '/retailer/return-product', icon: '↩️' },
-      { label: 'Purchase & Sales History', path: '/retailer/purchase-sales-history', icon: '📋' },
+      { label: 'Purchase History', path: '/retailer/purchase-history', icon: '🧾' },
+      { label: 'Sales History', path: '/retailer/sales-history', icon: '📈' },
       { label: 'Profile & License', path: '/retailer/profile', icon: '👤' }
     ],
     authority: [

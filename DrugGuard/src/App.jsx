@@ -34,6 +34,8 @@ import PendingStock from './retailer/PendingStock'
 import SellToCustomer from './retailer/SellToCustomer'
 import ReturnProduct from './retailer/ReturnProduct'
 import RetailerPurchaseSalesHistory from './retailer/RetailerPurchaseSalesHistory'
+import RetailerPurchaseHistory from './retailer/RetailerPurchaseHistory'
+import RetailerSalesHistory from './retailer/RetailerSalesHistory'
 import RetailerProfile from './retailer/RetailerProfile'
 
 // Higher Authority Components
@@ -97,6 +99,8 @@ function App() {
                 <Route path="/retailer/pending-stock" element={<PendingStock />} />
                 <Route path="/retailer/sell-to-customer" element={<SellToCustomer />} />
                 <Route path="/retailer/return-product" element={<ReturnProduct />} />
+                <Route path="/retailer/purchase-history" element={<RetailerPurchaseHistory />} />
+                <Route path="/retailer/sales-history" element={<RetailerSalesHistory />} />
                 <Route path="/retailer/purchase-sales-history" element={<RetailerPurchaseSalesHistory />} />
                 <Route path="/retailer/profile" element={<RetailerProfile />} />
               </>
