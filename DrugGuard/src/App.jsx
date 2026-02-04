@@ -24,11 +24,13 @@ import SalesHistory from './wholesaler/SalesHistory'
 import StockManagement from './wholesaler/StockManagement'
 import ReturnRequests from './wholesaler/ReturnRequests'
 import WholesalerProfile from './wholesaler/WholesalerProfile'
+import PendingDeliveries from './wholesaler/PendingDeliveries'
 
 // Retailer Components
 import RetailerDashboard from './retailer/RetailerDashboard'
 import PurchaseFromWholesaler from './retailer/PurchaseFromWholesaler'
 import ApproveStock from './retailer/ApproveStock'
+import PendingStock from './retailer/PendingStock'
 import SellToCustomer from './retailer/SellToCustomer'
 import ReturnProduct from './retailer/ReturnProduct'
 import RetailerPurchaseSalesHistory from './retailer/RetailerPurchaseSalesHistory'
@@ -81,6 +83,7 @@ function App() {
                 <Route path="/wholesaler/sales-history" element={<SalesHistory />} />
                 <Route path="/wholesaler/stock-management" element={<StockManagement />} />
                 <Route path="/wholesaler/return-requests" element={<ReturnRequests />} />
+                <Route path="/wholesaler/pending-deliveries" element={<PendingDeliveries />} />
                 <Route path="/wholesaler/profile" element={<WholesalerProfile />} />
               </>
             )}
@@ -91,6 +94,7 @@ function App() {
                 <Route path="/retailer/dashboard" element={<RetailerDashboard />} />
                 <Route path="/retailer/purchase-from-wholesaler" element={<PurchaseFromWholesaler />} />
                 <Route path="/retailer/approve-stock" element={<ApproveStock />} />
+                <Route path="/retailer/pending-stock" element={<PendingStock />} />
                 <Route path="/retailer/sell-to-customer" element={<SellToCustomer />} />
                 <Route path="/retailer/return-product" element={<ReturnProduct />} />
                 <Route path="/retailer/purchase-sales-history" element={<RetailerPurchaseSalesHistory />} />

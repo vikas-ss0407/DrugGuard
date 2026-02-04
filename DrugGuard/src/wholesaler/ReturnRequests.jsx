@@ -1,40 +1,69 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+
 export default function ReturnRequests() {
+  const [activeTab, setActiveTab] = useState('all') // 'all', 'expiry', 'other'
+
   const returnRequests = [
-    { id: 1, billNo: 'WHL-001-2024', retailer: 'City Pharmacy', drug: 'Paracetamol 500mg', quantity: 50, reason: 'Damaged packaging', date: '2024-02-02', status: 'Approved', refund: '₹1,250' },
-    { id: 2, billNo: 'WHL-002-2024', retailer: 'Main Street Clinic', drug: 'Amoxicillin 250mg', quantity: 20, reason: 'Expired batch', date: '2024-02-01', status: 'Pending', refund: '₹850' },
-    { id: 3, billNo: 'WHL-003-2024', retailer: 'Central Pharmacy', drug: 'Ibuprofen 400mg', quantity: 100, reason: 'Quality issue', date: '2024-01-30', status: 'Rejected', refund: '-' },
-    { id: 4, billNo: 'WHL-005-2024', retailer: 'Elite Retailers', drug: 'Cough Syrup', quantity: 15, reason: 'Storage issue', date: '2024-01-28', status: 'Approved', refund: '₹525' }
+    { id: 1, billNo: 'WHL-001-2024', retailer: 'City Pharmacy', drug: 'Paracetamol 500mg', batch: 'BAT001', quantity: 50, reason: 'Damaged packaging', type: 'damage', date: '2024-02-02', status: 'Approved', refund: 1250 },
+    { id: 2, billNo: 'WHL-002-2024', retailer: 'Main Street Clinic', drug: 'Amoxicillin 250mg', batch: 'BAT004', quantity: 20, reason: 'Expired batch', type: 'expiry', date: '2024-02-01', status: 'Pending', refund: 850 },
+    { id: 3, billNo: 'WHL-003-2024', retailer: 'Central Pharmacy', drug: 'Ibuprofen 400mg', batch: 'BAT003', quantity: 100, reason: 'Quality issue', type: 'quality', date: '2024-01-30', status: 'Rejected', refund: 0 },
+    { id: 4, billNo: 'WHL-005-2024', retailer: 'Elite Retailers', drug: 'Cough Syrup', batch: 'BAT005', quantity: 15, reason: 'Near expiry - 30 days', type: 'expiry', date: '2024-01-28', status: 'Approved', refund: 525 },
+    { id: 5, billNo: 'WHL-006-2024', retailer: 'City Pharmacy', drug: 'Vitamin B12', batch: 'BAT006', quantity: 40, reason: 'Expired - received past expiry', type: 'expiry', date: '2024-01-27', status: 'Pending', refund: 720 },
+    { id: 6, billNo: 'WHL-007-2024', retailer: 'Green Valley Hospital', drug: 'Aspirin 75mg', batch: 'BAT002', quantity: 30, reason: 'Wrong item delivered', type: 'wrong_item', date: '2024-01-26', status: 'Approved', refund: 360 }
   ]
 
+  const filteredRequests = returnRequests.filter(req => {
+    if (activeTab === 'expiry') return req.type === 'expiry'
+    if (activeTab === 'other') return req.type !== 'expiry'
+    return true
+  })
+
+  const expiryReturns = returnRequests.filter(req => req.type === 'expiry')
+  const otherReturns = returnRequests.filter(req => req.type !== 'expiry')
+
   const stats = [
-    { label: 'Total Returns', value: '185 units', icon: '↩️' },
-    { label: 'Total Refunds', value: '₹2,625', icon: '💰' },
-    { label: 'Pending Approval', value: '1', icon: '⏳' },
-    { label: 'Approval Rate', value: '75%', icon: '✓' }
+    { label: 'Total Returns', value: `${returnRequests.reduce((sum, r) => sum + r.quantity, 0)} units`, icon: '↩️', color: 'from-blue-600 to-blue-500' },
+    { label: 'Expiry Returns', value: `${expiryReturns.length} requests`, icon: '📅', color: 'from-yellow-600 to-yellow-500' },
+    { label: 'Other Returns', value: `${otherReturns.length} requests`, icon: '📦', color: 'from-purple-600 to-purple-500' },
+    { label: 'Pending Approval', value: returnRequests.filter(r => r.status === 'Pending').length, icon: '⏳', color: 'from-orange-600 to-orange-500' }
   ]
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Approved': return 'bg-green-500'
-      case 'Pending': return 'bg-yellow-500'
-      case 'Rejected': return 'bg-red-500'
-      default: return 'bg-slate-500'
+      case 'Approved': return 'bg-green-600/20 text-green-400'
+      case 'Pending': return 'bg-yellow-600/20 text-yellow-400'
+      case 'Rejected': return 'bg-red-600/20 text-red-400'
+      default: return 'bg-slate-600/20 text-slate-400'
     }
+  }
+
+  const getTypeColor = (type) => {
+    if (type === 'expiry') return 'bg-yellow-600/20 text-yellow-400'
+    return 'bg-blue-600/20 text-blue-400'
   }
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
       <div className="w-full">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Return Requests</h1>
-          <p className="text-slate-400">Manage product returns and refunds from retailers</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Return Requests</h1>
+            <p className="text-slate-400">Manage product returns and refunds from retailers</p>
+          </div>
+          <Link 
+            to="/wholesaler/pending-deliveries"
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
+          >
+            📦 Pending Deliveries
+          </Link>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat) => (
-            <div key={stat.label} className="bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg p-6 text-white shadow-lg">
+            <div key={stat.label} className={`bg-gradient-to-br ${stat.color} rounded-lg p-6 text-white shadow-lg`}>
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-sm font-semibold opacity-90">{stat.label}</h3>
                 <span className="text-3xl">{stat.icon}</span>
@@ -44,19 +73,38 @@ export default function ReturnRequests() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700 flex gap-4 flex-wrap">
-          <input
-            type="text"
-            placeholder="Search bill number..."
-            className="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select className="px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Status</option>
-            <option>Pending</option>
-            <option>Approved</option>
-            <option>Rejected</option>
-          </select>
+        {/* Tabs */}
+        <div className="bg-slate-800 rounded-lg p-2 mb-6 border border-slate-700 flex gap-2">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+              activeTab === 'all' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            All Returns ({returnRequests.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('expiry')}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+              activeTab === 'expiry' 
+                ? 'bg-yellow-600 text-white' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            📅 Expiry Returns ({expiryReturns.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('other')}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+              activeTab === 'other' 
+                ? 'bg-purple-600 text-white' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            📦 Other Returns ({otherReturns.length})
+          </button>
         </div>
 
         {/* Returns Table */}
@@ -68,34 +116,44 @@ export default function ReturnRequests() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bill Number</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Retailer</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Drug</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Batch</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Type</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Reason</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Refund</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {returnRequests.map((req) => (
+                {filteredRequests.map((req) => (
                   <tr key={req.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{req.billNo}</td>
+                    <td className="px-6 py-4 text-blue-400 font-semibold">{req.billNo}</td>
                     <td className="px-6 py-4 text-slate-300">{req.retailer}</td>
-                    <td className="px-6 py-4 text-slate-300">{req.drug}</td>
+                    <td className="px-6 py-4 text-white font-semibold">{req.drug}</td>
+                    <td className="px-6 py-4 text-slate-300 font-mono">{req.batch}</td>
                     <td className="px-6 py-4 text-slate-300">{req.quantity} units</td>
-                    <td className="px-6 py-4 text-slate-300 text-sm">{req.reason}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getStatusColor(req.status)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(req.type)}`}>
+                        {req.type === 'expiry' ? '📅 Expiry' : '📦 Other'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-300 text-sm">{req.reason}</td>
+                    <td className="px-6 py-4 text-slate-300">{req.date}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(req.status)}`}>
                         {req.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{req.refund}</td>
+                    <td className="px-6 py-4 text-green-400 font-bold">₹{req.refund.toFixed(2)}</td>
                     <td className="px-6 py-4">
                       {req.status === 'Pending' ? (
-                        <div className="space-x-2">
-                          <button className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                        <div className="flex flex-col gap-2">
+                          <button className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors whitespace-nowrap">
                             Approve
                           </button>
-                          <button className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">
+                          <button className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors whitespace-nowrap">
                             Reject
                           </button>
                         </div>
