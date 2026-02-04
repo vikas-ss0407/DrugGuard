@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 export default function SellToRetailer() {
   const [step, setStep] = useState(1)
@@ -9,8 +9,15 @@ export default function SellToRetailer() {
     paymentTerms: '',
     specialNotes: ''
   })
-  const [medicineSearch, setMedicineSearch] = useState({})
-  const [openDropdown, setOpenDropdown] = useState(null)
+  const [currentMedicine, setCurrentMedicine] = useState({
+    drugId: '',
+    quantity: ''
+  })
+  const [medicineSearch, setMedicineSearch] = useState('')
+  const [openDropdown, setOpenDropdown] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const searchInputRef = useRef(null)
+  const quantityInputRef = useRef(null)
 
   const retailers = ['City Pharmacy', 'Main Street Clinic', 'Central Pharmacy', 'Green Valley Hospital', 'Elite Retailers']
   const availableDrugs = [
@@ -30,19 +37,72 @@ export default function SellToRetailer() {
     }))
   }
 
-  const addDrug = () => {
+  const addMedicineToOrder = () => {
+    if (!currentMedicine.drugId || !currentMedicine.quantity) {
+      alert('Please select a medicine and enter quantity')
+      return
+    }
+
+    // Add to order summary
     setFormData(prev => ({
       ...prev,
-      drugs: [...prev.drugs, { drugId: '', quantity: '', notes: '' }]
+      drugs: [...prev.drugs, { ...currentMedicine }]
     }))
+
+    // Clear current selection for next medicine
+    setCurrentMedicine({ drugId: '', quantity: '' })
+    setMedicineSearch('')
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
+    
+    // Focus back on search input
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }, 100)
   }
 
-  const updateDrug = (index, field, value) => {
-    setFormData(prev => {
-      const newDrugs = [...prev.drugs]
-      newDrugs[index][field] = value
-      return { ...prev, drugs: newDrugs }
-    })
+  const selectMedicine = (drug) => {
+    setCurrentMedicine(prev => ({ ...prev, drugId: drug.id.toString() }))
+    setMedicineSearch(drug.name)
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
+    // Focus on quantity input after selection
+    setTimeout(() => {
+      if (quantityInputRef.current) {
+        quantityInputRef.current.focus()
+      }
+    }, 100)
+  }
+
+  const handleSearchKeyDown = (e) => {
+    const filteredDrugs = availableDrugs.filter(d => 
+      d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+    )
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedIndex(prev => 
+        prev < filteredDrugs.length - 1 ? prev + 1 : prev
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0)
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault()
+      selectMedicine(filteredDrugs[highlightedIndex])
+    } else if (e.key === 'Tab' && highlightedIndex >= 0) {
+      e.preventDefault()
+      selectMedicine(filteredDrugs[highlightedIndex])
+    }
+  }
+
+  const handleQuantityKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addMedicineToOrder()
+    }
   }
 
   const removeDrug = (index) => {
@@ -142,26 +202,137 @@ export default function SellToRetailer() {
 
           {/* Drugs Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <div>
                 <h3 className="text-xl font-bold text-white">📋 Add Medicines</h3>
-                <p className="text-slate-400 text-sm mt-1">Select medicines and quantities for the order</p>
+                <p className="text-slate-400 text-sm mt-1">Search and select medicines for the order</p>
               </div>
-              <button
-                type="button"
-                onClick={addDrug}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all font-semibold shadow-lg flex items-center gap-2"
-              >
-                <span className="text-xl">+</span> Add Medicine
-              </button>
             </div>
 
-            {formData.drugs.length === 0 ? (
-              <div className="bg-slate-700/50 border-2 border-dashed border-slate-600 rounded-lg p-8 text-center">
-                <p className="text-slate-400 mb-2">📦 No medicines added yet</p>
-                <p className="text-slate-500 text-sm">Click "Add Medicine" to start selecting medicines for this order</p>
+            {/* Single Search Row */}
+            <div className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-600">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1 relative">
+                  <label className="block text-xs font-medium text-slate-300 mb-2">Search Medicine</label>
+                  <div className="relative">
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={medicineSearch}
+                      onChange={(e) => {
+                        setMedicineSearch(e.target.value)
+                        setOpenDropdown(true)
+                        setHighlightedIndex(-1)
+                      }}
+                      onKeyDown={handleSearchKeyDown}
+                      onFocus={() => setOpenDropdown(true)}
+                      onBlur={() => setTimeout(() => setOpenDropdown(false), 300)}
+                      placeholder="Type medicine name..."
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    />
+                    {openDropdown && (
+                      <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-[9999] w-full max-w-[900px] max-h-72 overflow-y-auto">
+                        {availableDrugs.filter(d => 
+                          d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+                        ).length > 0 ? (
+                          <div className="divide-y divide-slate-700">
+                            {availableDrugs.filter(d => 
+                              d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+                            ).map((d, index) => (
+                              <div
+                                key={d.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  selectMedicine(d)
+                                }}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                className={`px-5 py-4 cursor-pointer transition-colors ${
+                                  highlightedIndex === index 
+                                    ? 'bg-blue-600/30 border-l-4 border-blue-500' 
+                                    : 'hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="font-bold text-white text-base mb-2">{d.name}</div>
+                                <div className="grid grid-cols-7 gap-3 text-xs">
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Company</div>
+                                    <div className="text-slate-300 font-semibold">{d.company}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Batch</div>
+                                    <div className="text-slate-300 font-mono">{d.batch}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Expiry</div>
+                                    <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Rate</div>
+                                    <div className="text-green-400 font-bold">₹{d.rate}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">MRP</div>
+                                    <div className="text-blue-400 font-bold">₹{d.mrp}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Offer</div>
+                                    <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
+                                      {d.offer ? d.offer : '-'}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Stock</div>
+                                    <div className={`font-bold ${d.stock > 100 ? 'text-green-400' : d.stock > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                      {d.stock} units
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="px-5 py-8 text-center">
+                            <div className="text-4xl mb-2">🔍</div>
+                            <div className="text-slate-400">No medicines found</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-slate-300 mb-2">Quantity</label>
+                  <input
+                    ref={quantityInputRef}
+                    type="number"
+                    min="1"
+                    value={currentMedicine.quantity}
+                    onChange={(e) => setCurrentMedicine(prev => ({ ...prev, quantity: e.target.value }))}
+                    onKeyPress={handleQuantityKeyPress}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    placeholder="Qty"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addMedicineToOrder}
+                  className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 transition-all font-semibold shadow-lg"
+                >
+                  ➕ Add
+                </button>
               </div>
-            ) : (
+            </div>
+          </div>
+
+          {/* Bill Preview */}
+          {formData.drugs.length > 0 && (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg p-8 mb-8 border-2 border-slate-600 shadow-2xl overflow-hidden">
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-white mb-2">📋 Bill Summary</h3>
+                <p className="text-slate-400 text-sm">Complete medicine details for your order</p>
+              </div>
+
+              {/* Order Summary Table */}
               <div className="bg-slate-800 rounded-lg border border-slate-600 overflow-visible shadow-lg">
                 <div className="overflow-visible">
                   <table className="w-full">
@@ -176,131 +347,71 @@ export default function SellToRetailer() {
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Qty</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Rate (₹)</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">MRP (₹)</th>
+                        <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Offer</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Amount (₹)</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {formData.drugs.map((drug, idx) => {
-                        const selectedDrug = availableDrugs.find(d => d.id === parseInt(drug.drugId))
-                        const amount = selectedDrug && drug.quantity ? selectedDrug.rate * parseInt(drug.quantity) : 0
+                        const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+                        if (!drugInfo) return null
+                        const amount = drugInfo.rate * (drug.quantity || 0)
+                        
+                        // Calculate offer display
+                        let qtyDisplay = drug.quantity || 0
+                        if (drugInfo.offer && drug.quantity) {
+                          const offerParts = drugInfo.offer.split('+')
+                          const buyQty = parseInt(offerParts[0])
+                          const freeQty = parseInt(offerParts[1])
+                          
+                          if (parseInt(drug.quantity) >= buyQty) {
+                            const sets = Math.floor(parseInt(drug.quantity) / buyQty)
+                            const remaining = parseInt(drug.quantity) % buyQty
+                            
+                            if (remaining === 0) {
+                              qtyDisplay = `${drug.quantity}+${sets * freeQty}`
+                            } else {
+                              qtyDisplay = drug.quantity
+                            }
+                          }
+                        }
                         
                         return (
-                          <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors overflow-visible">
+                          <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                             <td className="px-4 py-4 text-center">
                               <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
                                 {idx + 1}
                               </span>
                             </td>
-                            <td className="px-4 py-4 relative overflow-visible z-50">
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  value={medicineSearch[idx] || ''}
-                                  onChange={(e) => {
-                                    setMedicineSearch(prev => ({...prev, [idx]: e.target.value}))
-                                    setOpenDropdown(idx)
-                                  }}
-                                  onFocus={() => setOpenDropdown(idx)}
-                                  onBlur={() => setTimeout(() => setOpenDropdown(null), 200)}
-                                  placeholder="Type medicine name..."
-                                  className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                                />
-                                {openDropdown === idx && (
-                                  <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-50 w-[900px] max-h-72 overflow-y-auto">
-                                    {availableDrugs.filter(d => 
-                                      d.name.toLowerCase().includes((medicineSearch[idx] || '').toLowerCase())
-                                    ).length > 0 ? (
-                                      <div className="divide-y divide-slate-700">
-                                        {availableDrugs.filter(d => 
-                                          d.name.toLowerCase().includes((medicineSearch[idx] || '').toLowerCase())
-                                        ).map((d) => {
-                                          return (
-                                            <div
-                                              key={d.id}
-                                              onClick={() => {
-                                                updateDrug(idx, 'drugId', d.id.toString())
-                                                setMedicineSearch(prev => ({...prev, [idx]: d.name}))
-                                                setOpenDropdown(null)
-                                              }}
-                                              className="px-5 py-4 hover:bg-slate-800 cursor-pointer transition-colors"
-                                            >
-                                              <div className="font-bold text-white text-base mb-2">{d.name}</div>
-                                              <div className="grid grid-cols-7 gap-3 text-xs">
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Company</div>
-                                                  <div className="text-slate-300 font-semibold">{d.company}</div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Batch</div>
-                                                  <div className="text-slate-300 font-mono">{d.batch}</div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Expiry</div>
-                                                  <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Rate</div>
-                                                  <div className="text-green-400 font-bold">₹{d.rate}</div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">MRP</div>
-                                                  <div className="text-blue-400 font-bold">₹{d.mrp}</div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Offer</div>
-                                                  <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
-                                                    {d.offer ? d.offer : '-'}
-                                                  </div>
-                                                </div>
-                                                <div>
-                                                  <div className="text-slate-500 mb-1">Stock</div>
-                                                  <div className={`font-bold ${d.stock > 100 ? 'text-green-400' : d.stock > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                                    {d.stock} units
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                    ) : (
-                                      <div className="px-5 py-8 text-center">
-                                        <div className="text-4xl mb-2">🔍</div>
-                                        <div className="text-slate-400">No medicines found</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                            <td className="px-4 py-4 text-white text-sm font-medium">
+                              {drugInfo.name}
                             </td>
                             <td className="px-4 py-4 text-white text-sm font-medium">
-                              {selectedDrug ? selectedDrug.company : '-'}
+                              {drugInfo.company}
                             </td>
                             <td className="px-4 py-4 text-slate-300 text-sm font-mono">
-                              {selectedDrug ? selectedDrug.batch : '-'}
+                              {drugInfo.batch}
                             </td>
                             <td className="px-4 py-4 text-slate-300 text-sm">
-                              {selectedDrug ? new Date(selectedDrug.expiryDate).toLocaleDateString() : '-'}
+                              {new Date(drugInfo.expiryDate).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-4 text-slate-300 text-sm">
-                              {selectedDrug ? `${selectedDrug.category} (${selectedDrug.categoryUnit})` : '-'}
+                              {drugInfo.category} ({drugInfo.categoryUnit})
                             </td>
-                            <td className="px-4 py-4 text-center">
-                              <input
-                                type="number"
-                                min="1"
-                                value={drug.quantity}
-                                onChange={(e) => updateDrug(idx, 'quantity', e.target.value)}
-                                className="w-20 px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                                placeholder="Qty"
-                              />
+                            <td className="px-4 py-4 text-center text-slate-300 font-semibold">
+                              {qtyDisplay}
                             </td>
                             <td className="px-4 py-4 text-center text-green-400 font-bold text-sm">
-                              {selectedDrug ? `₹${selectedDrug.rate}` : '-'}
+                              ₹{drugInfo.rate}
                             </td>
                             <td className="px-4 py-4 text-center text-blue-400 font-bold text-sm">
-                              {selectedDrug ? `₹${selectedDrug.mrp}` : '-'}
+                              ₹{drugInfo.mrp}
+                            </td>
+                            <td className="px-4 py-4 text-center font-bold text-sm">
+                              <span className={drugInfo.offer ? 'text-yellow-400' : 'text-slate-500'}>
+                                {drugInfo.offer || '-'}
+                              </span>
                             </td>
                             <td className="px-4 py-4 text-center text-white font-bold text-sm">
                               ₹{amount.toFixed(2)}
@@ -311,7 +422,7 @@ export default function SellToRetailer() {
                                 onClick={() => removeDrug(idx)}
                                 className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors text-xs font-medium"
                               >
-                                🗑️ Remove
+                                🗑️
                               </button>
                             </td>
                           </tr>
@@ -320,78 +431,6 @@ export default function SellToRetailer() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bill Preview */}
-          {formData.drugs.length > 0 && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg p-8 mb-8 border-2 border-slate-600 shadow-2xl overflow-hidden">
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-white mb-2">📋 Bill Summary</h3>
-                <p className="text-slate-400 text-sm">Complete medicine details for your order</p>
-              </div>
-
-              {/* Detailed Bill Items */}
-              <div className="space-y-4 mb-8 max-h-none">
-                {formData.drugs.map((drug, idx) => {
-                  const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
-                  if (!drugInfo) return null
-                  const amount = drugInfo.rate * (drug.quantity || 0)
-                  return (
-                    <div key={idx} className="bg-slate-700/50 border border-slate-600 rounded-lg p-6 hover:border-blue-500 transition-colors">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <span className="inline-block bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-sm mr-3">{idx + 1}</span>
-                          <h4 className="text-lg font-bold text-white inline-block">{drugInfo.name}</h4>
-                        </div>
-                        <span className="text-2xl font-bold text-green-400">₹{amount.toFixed(2)}</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div className="bg-slate-600/50 p-3 rounded-lg">
-                          <p className="text-xs text-slate-400 mb-1">🏭 Company</p>
-                          <p className="text-white font-semibold text-sm">{drugInfo.company}</p>
-                        </div>
-                        <div className="bg-slate-600/50 p-3 rounded-lg">
-                          <p className="text-xs text-slate-400 mb-1">📦 Batch</p>
-                          <p className="text-white font-semibold text-sm font-mono">{drugInfo.batch}</p>
-                        </div>
-                        <div className="bg-slate-600/50 p-3 rounded-lg">
-                          <p className="text-xs text-slate-400 mb-1">📅 Expiry</p>
-                          <p className="text-white font-semibold text-sm">{new Date(drugInfo.expiryDate).toLocaleDateString()}</p>
-                        </div>
-                        <div className="bg-slate-600/50 p-3 rounded-lg">
-                          <p className="text-xs text-slate-400 mb-1">🏷️ Category</p>
-                          <p className="text-white font-semibold text-sm">{drugInfo.category} ({drugInfo.categoryUnit})</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-slate-600">
-                        <div className="text-center">
-                          <p className="text-xs text-slate-400 mb-1">💰 Rate</p>
-                          <p className="text-green-400 font-bold text-lg">₹{drugInfo.rate}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-400 mb-1">🏷️ MRP</p>
-                          <p className="text-blue-400 font-bold text-lg">₹{drugInfo.mrp}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-400 mb-1">📊 Quantity</p>
-                          <p className="text-white font-bold text-lg">{drug.quantity}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-400 mb-1">📦 Stock</p>
-                          <p className="text-yellow-400 font-bold text-lg">{drugInfo.stock}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-400 mb-1">🔢 Subtotal</p>
-                          <p className="text-green-400 font-bold text-lg">₹{amount.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
               </div>
 
               {/* Total Section */}
