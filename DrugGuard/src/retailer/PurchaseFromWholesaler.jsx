@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 export default function PurchaseFromWholesaler() {
   const [formData, setFormData] = useState({
     wholesaler: '',
     drugs: []
   })
-  const [medicineSearch, setMedicineSearch] = useState({})
-  const [openDropdown, setOpenDropdown] = useState(null)
+  const [currentMedicine, setCurrentMedicine] = useState({
+    drugId: '',
+    quantity: ''
+  })
+  const [medicineSearch, setMedicineSearch] = useState('')
+  const [openDropdown, setOpenDropdown] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const searchInputRef = useRef(null)
+  const quantityInputRef = useRef(null)
 
   const wholesalers = ['MediCorp Wholesale', 'HealthCare Distributors', 'Prime Pharmaceuticals']
   const availableDrugs = [
@@ -24,19 +31,72 @@ export default function PurchaseFromWholesaler() {
     }))
   }
 
-  const addDrug = () => {
+  const addMedicineToOrder = () => {
+    if (!currentMedicine.drugId || !currentMedicine.quantity) {
+      alert('Please select a medicine and enter quantity')
+      return
+    }
+
+    // Add to order summary
     setFormData(prev => ({
       ...prev,
-      drugs: [...prev.drugs, { drugId: '', quantity: '' }]
+      drugs: [...prev.drugs, { ...currentMedicine }]
     }))
+
+    // Clear current selection for next medicine
+    setCurrentMedicine({ drugId: '', quantity: '' })
+    setMedicineSearch('')
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
+    
+    // Focus back on search input
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }, 100)
   }
 
-  const updateDrug = (index, field, value) => {
-    setFormData(prev => {
-      const newDrugs = [...prev.drugs]
-      newDrugs[index][field] = value
-      return { ...prev, drugs: newDrugs }
-    })
+  const selectMedicine = (drug) => {
+    setCurrentMedicine(prev => ({ ...prev, drugId: drug.id.toString() }))
+    setMedicineSearch(drug.name)
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
+    // Focus on quantity input after selection
+    setTimeout(() => {
+      if (quantityInputRef.current) {
+        quantityInputRef.current.focus()
+      }
+    }, 100)
+  }
+
+  const handleSearchKeyDown = (e) => {
+    const filteredDrugs = availableDrugs.filter(d => 
+      d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+    )
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedIndex(prev => 
+        prev < filteredDrugs.length - 1 ? prev + 1 : prev
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0)
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault()
+      selectMedicine(filteredDrugs[highlightedIndex])
+    } else if (e.key === 'Tab' && highlightedIndex >= 0) {
+      e.preventDefault()
+      selectMedicine(filteredDrugs[highlightedIndex])
+    }
+  }
+
+  const handleQuantityKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addMedicineToOrder()
+    }
   }
 
   const removeDrug = (index) => {
@@ -91,143 +151,120 @@ export default function PurchaseFromWholesaler() {
 
           {/* Drugs Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <div>
                 <h3 className="text-xl font-bold text-white">📋 Add Medicines</h3>
                 <p className="text-slate-400 text-sm mt-1">Search and select medicines for the order</p>
               </div>
-              <button
-                type="button"
-                onClick={addDrug}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all font-semibold shadow-lg flex items-center gap-2"
-              >
-                <span className="text-xl">+</span> Add Medicine
-              </button>
             </div>
 
-            {formData.drugs.length === 0 && (
-              <div className="bg-slate-700/50 border-2 border-dashed border-slate-600 rounded-lg p-8 text-center">
-                <p className="text-slate-400 mb-2">📦 No medicines added yet</p>
-                <p className="text-slate-500 text-sm">Click "Add Medicine" to start searching medicines for this order</p>
-              </div>
-            )}
-
-            {formData.drugs.map((drug, idx) => {
-              const selectedDrug = availableDrugs.find(d => d.id === parseInt(drug.drugId))
-              const displayValue = selectedDrug ? selectedDrug.name : (medicineSearch[idx] || '')
-              
-              return (
-                <div key={idx} className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-600">
-                  <div className="flex gap-4 items-start">
-                    <div className="flex-1 relative overflow-visible z-50">
-                      {selectedDrug ? (
-                        <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-2">Medicine Selected ✓</label>
-                          <div className="px-3 py-2 rounded-lg bg-slate-700 text-white text-sm font-medium border-2 border-green-500">
-                            {selectedDrug.name}
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-2">Search Medicine</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              value={displayValue}
-                              onChange={(e) => {
-                                setMedicineSearch(prev => ({...prev, [idx]: e.target.value}))
-                                setOpenDropdown(idx)
-                              }}
-                              onFocus={() => setOpenDropdown(idx)}
-                              onBlur={() => setTimeout(() => setOpenDropdown(null), 300)}
-                              placeholder="Type medicine name..."
-                              className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                            />
-                            {openDropdown === idx && (
-                              <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-50 w-[900px] max-h-72 overflow-y-auto">
-                                {availableDrugs.filter(d => 
-                                  d.name.toLowerCase().includes((medicineSearch[idx] || '').toLowerCase())
-                                ).length > 0 ? (
-                                  <div className="divide-y divide-slate-700">
-                                    {availableDrugs.filter(d => 
-                                      d.name.toLowerCase().includes((medicineSearch[idx] || '').toLowerCase())
-                                    ).map((d) => (
-                                      <div
-                                        key={d.id}
-                                        onMouseDown={(e) => {
-                                          e.preventDefault()
-                                          updateDrug(idx, 'drugId', d.id.toString())
-                                          setMedicineSearch(prev => ({...prev, [idx]: d.name}))
-                                          setOpenDropdown(null)
-                                        }}
-                                        className="px-5 py-4 hover:bg-slate-800 cursor-pointer transition-colors"
-                                      >
-                                        <div className="font-bold text-white text-base mb-2">{d.name}</div>
-                                        <div className="grid grid-cols-6 gap-3 text-xs">
-                                          <div>
-                                            <div className="text-slate-500 mb-1">Company</div>
-                                            <div className="text-slate-300 font-semibold">{d.company}</div>
-                                          </div>
-                                          <div>
-                                            <div className="text-slate-500 mb-1">Batch</div>
-                                            <div className="text-slate-300 font-mono">{d.batch}</div>
-                                          </div>
-                                          <div>
-                                            <div className="text-slate-500 mb-1">Expiry</div>
-                                            <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
-                                          </div>
-                                          <div>
-                                            <div className="text-slate-500 mb-1">Price</div>
-                                            <div className="text-green-400 font-bold">₹{d.price}</div>
-                                          </div>
-                                          <div>
-                                            <div className="text-slate-500 mb-1">MRP</div>
-                                            <div className="text-blue-400 font-bold">₹{d.mrp}</div>
-                                          </div>
-                                          <div>
-                                            <div className="text-slate-500 mb-1">Offer</div>
-                                            <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
-                                              {d.offer ? d.offer : '-'}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
+            {/* Single Search Row */}
+            <div className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-600">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1 relative">
+                  <label className="block text-xs font-medium text-slate-300 mb-2">Search Medicine</label>
+                  <div className="relative">
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={medicineSearch}
+                      onChange={(e) => {
+                        setMedicineSearch(e.target.value)
+                        setOpenDropdown(true)
+                        setHighlightedIndex(-1)
+                      }}
+                      onKeyDown={handleSearchKeyDown}
+                      onFocus={() => setOpenDropdown(true)}
+                      onBlur={() => setTimeout(() => setOpenDropdown(false), 300)}
+                      placeholder="Type medicine name..."
+                      className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    />
+                    {openDropdown && (
+                      <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-[9999] w-full max-w-[900px] max-h-72 overflow-y-auto">
+                        {availableDrugs.filter(d => 
+                          d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+                        ).length > 0 ? (
+                          <div className="divide-y divide-slate-700">
+                            {availableDrugs.filter(d => 
+                              d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+                            ).map((d, index) => (
+                              <div
+                                key={d.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  selectMedicine(d)
+                                }}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                className={`px-5 py-4 cursor-pointer transition-colors ${
+                                  highlightedIndex === index 
+                                    ? 'bg-blue-600/30 border-l-4 border-blue-500' 
+                                    : 'hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="font-bold text-white text-base mb-2">{d.name}</div>
+                                <div className="grid grid-cols-6 gap-3 text-xs">
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Company</div>
+                                    <div className="text-slate-300 font-semibold">{d.company}</div>
                                   </div>
-                                ) : (
-                                  <div className="px-5 py-8 text-center">
-                                    <div className="text-4xl mb-2">🔍</div>
-                                    <div className="text-slate-400">No medicines found</div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Batch</div>
+                                    <div className="text-slate-300 font-mono">{d.batch}</div>
                                   </div>
-                                )}
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Expiry</div>
+                                    <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Price</div>
+                                    <div className="text-green-400 font-bold">₹{d.price}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">MRP</div>
+                                    <div className="text-blue-400 font-bold">₹{d.mrp}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Offer</div>
+                                    <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
+                                      {d.offer ? d.offer : '-'}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            )}
+                            ))}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="w-20">
-                      <label className="block text-xs font-medium text-slate-300 mb-2">Quantity</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={drug.quantity}
-                        onChange={(e) => updateDrug(idx, 'quantity', e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                        placeholder="Qty"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeDrug(idx)}
-                      className="px-3 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors text-xs font-medium mt-6"
-                    >
-                      🗑️ Remove
-                    </button>
+                        ) : (
+                          <div className="px-5 py-8 text-center">
+                            <div className="text-4xl mb-2">🔍</div>
+                            <div className="text-slate-400">No medicines found</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )
-            })}
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-slate-300 mb-2">Quantity</label>
+                  <input
+                    ref={quantityInputRef}
+                    type="number"
+                    min="1"
+                    value={currentMedicine.quantity}
+                    onChange={(e) => setCurrentMedicine(prev => ({ ...prev, quantity: e.target.value }))}
+                    onKeyPress={handleQuantityKeyPress}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    placeholder="Qty"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addMedicineToOrder}
+                  className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 transition-all font-semibold shadow-lg"
+                >
+                  ➕ Add
+                </button>
+              </div>
+            </div>
           </div>
 
           {formData.drugs.length > 0 && (
@@ -251,7 +288,9 @@ export default function PurchaseFromWholesaler() {
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Qty</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Price (₹)</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">MRP (₹)</th>
+                        <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Offer</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Amount (₹)</th>
+                        <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -259,6 +298,25 @@ export default function PurchaseFromWholesaler() {
                         const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
                         if (!drugInfo) return null
                         const amount = drugInfo.price * (drug.quantity || 0)
+                        
+                        // Calculate offer display
+                        let qtyDisplay = drug.quantity || 0
+                        if (drugInfo.offer && drug.quantity) {
+                          const offerParts = drugInfo.offer.split('+')
+                          const buyQty = parseInt(offerParts[0])
+                          const freeQty = parseInt(offerParts[1])
+                          
+                          if (parseInt(drug.quantity) >= buyQty) {
+                            const sets = Math.floor(parseInt(drug.quantity) / buyQty)
+                            const remaining = parseInt(drug.quantity) % buyQty
+                            
+                            if (remaining === 0) {
+                              qtyDisplay = `${drug.quantity}+${sets * freeQty}`
+                            } else {
+                              qtyDisplay = drug.quantity
+                            }
+                          }
+                        }
                         
                         return (
                           <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
@@ -280,7 +338,7 @@ export default function PurchaseFromWholesaler() {
                               {new Date(drugInfo.expiryDate).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-4 text-center text-slate-300 font-semibold">
-                              {drug.quantity}
+                              {qtyDisplay}
                             </td>
                             <td className="px-4 py-4 text-center text-green-400 font-bold text-sm">
                               ₹{drugInfo.price}
@@ -288,8 +346,22 @@ export default function PurchaseFromWholesaler() {
                             <td className="px-4 py-4 text-center text-blue-400 font-bold text-sm">
                               ₹{drugInfo.mrp}
                             </td>
+                            <td className="px-4 py-4 text-center font-bold text-sm">
+                              <span className={drugInfo.offer ? 'text-yellow-400' : 'text-slate-500'}>
+                                {drugInfo.offer || '-'}
+                              </span>
+                            </td>
                             <td className="px-4 py-4 text-center text-white font-bold text-sm">
                               ₹{amount.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeDrug(idx)}
+                                className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors text-xs font-medium"
+                              >
+                                🗑️
+                              </button>
                             </td>
                           </tr>
                         )
