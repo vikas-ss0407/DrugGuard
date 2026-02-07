@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const API_BASE_URL = 'http://localhost:5000/api'
 
 export default function UpdateShopDetails() {
   const [view, setView] = useState('list') // 'list', 'update'
@@ -6,15 +8,9 @@ export default function UpdateShopDetails() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('all') // 'all', 'wholesale', 'retail'
 
-  // Mock data for shops
-  const allShops = [
-    { id: 1, name: 'MediCorp Wholesale', licenseNo: 'CHE/WS/2024/12345', type: 'Wholesale', owner: 'Rajesh Kumar', phone: '9876543210', email: 'medicorp@example.com', status: 'Active' },
-    { id: 2, name: 'HealthCare Distributors', licenseNo: 'CHE/WS/2024/12346', type: 'Wholesale', owner: 'Priya Sharma', phone: '9876543211', email: 'healthcare@example.com', status: 'Active' },
-    { id: 3, name: 'Prime Pharmaceuticals', licenseNo: 'CHE/WS/2024/12347', type: 'Wholesale', owner: 'Amit Patel', phone: '9876543212', email: 'prime@example.com', status: 'Active' },
-    { id: 4, name: 'City Pharmacy', licenseNo: 'CHE/RT/2024/56789', type: 'Retail', owner: 'Sunita Reddy', phone: '9876543220', email: 'citypharmacy@example.com', status: 'Active' },
-    { id: 5, name: 'Main Street Clinic', licenseNo: 'CHE/RT/2024/56790', type: 'Retail', owner: 'Mohammed Ali', phone: '9876543221', email: 'mainstreet@example.com', status: 'Active' },
-    { id: 6, name: 'Central Pharmacy', licenseNo: 'CHE/RT/2024/56791', type: 'Retail', owner: 'Kavita Singh', phone: '9876543222', email: 'central@example.com', status: 'Active' },
-  ]
+  // Loaded licenses from backend
+  const [licenses, setLicenses] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,76 +57,102 @@ export default function UpdateShopDetails() {
     refrigeratorModel: '',
     refrigeratorCapacity: '',
     refrigeratorTempRange: '',
-    loginEmail: '',
+    username: '',
     loginPassword: '',
     confirmPassword: '',
   })
 
-  const filteredShops = allShops.filter(shop => {
-    const matchesSearch = searchQuery === '' || 
-      shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.licenseNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.owner.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    const matchesType = filterType === 'all' || 
-      (filterType === 'wholesale' && shop.type === 'Wholesale') ||
-      (filterType === 'retail' && shop.type === 'Retail')
-    
+  const filteredShops = licenses.filter((lic) => {
+    const shop = lic.data || {}
+    const name = lic.shop_name || shop.shopFirmName || ''
+    const licenseNo = lic.license_number || ''
+    const owner = lic.owner_name || shop.fullName || ''
+    const type = (shop.licenseType || '').toLowerCase()
+
+    const matchesSearch = searchQuery === '' ||
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      licenseNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      owner.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesType = filterType === 'all' ||
+      (filterType === 'wholesale' && type === 'wholesale') ||
+      (filterType === 'retail' && type === 'retail')
+
     return matchesSearch && matchesType
   })
 
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`${API_BASE_URL}/inspector/licenses`)
+        if (!res.ok) throw new Error('Failed to fetch')
+        const json = await res.json()
+        setLicenses(json.licenses || [])
+      } catch (err) {
+        console.error('Error fetching licenses', err)
+        setLicenses([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   const handleShopSelect = (shop) => {
+    // shop here is license record from backend
     setSelectedShop(shop)
-    // Pre-fill form with shop data (in real app, fetch from backend)
-    setFormData({
-      fullName: shop.owner,
-      dateOfBirth: '1980-01-01',
-      licenseType: shop.type,
-      shopFirmName: shop.name,
-      ownershipType: 'Individual',
-      doorNo: '123',
-      area: 'Anna Nagar',
-      city: 'Chennai',
-      post: 'Anna Nagar',
-      district: 'Chennai',
-      state: 'Tamil Nadu',
-      pinCode: '600040',
-      mobileNumber: shop.phone,
-      email: shop.email,
-      ownerPanCard: 'AAAPA1234A',
-      ownerAadharNumber: '1234 5678 9012',
+    const data = shop.data || {}
+    setFormData(prev => ({
+      ...prev,
+      fullName: data.fullName || shop.owner_name || '',
+      dateOfBirth: data.dateOfBirth || '',
+      licenseType: data.licenseType || '',
+      shopFirmName: data.shopFirmName || shop.shop_name || '',
+      ownershipType: data.ownershipType || '',
+      doorNo: data.doorNo || '',
+      area: data.area || '',
+      city: data.city || '',
+      post: data.post || '',
+      district: data.district || '',
+      state: data.state || '',
+      pinCode: data.pinCode || '',
+      mobileNumber: data.mobileNumber || '',
+      email: data.email || '',
+      ownerPanCard: data.ownerPanCard || '',
+      ownerAadharNumber: data.ownerAadharNumber || '',
       ownerAadharCardImage: null,
-      pharmacistName: 'Dr. Ramesh Kumar',
-      registrationId: 'TN/PHARM/2020/12345',
-      qualification: 'B.Pharm',
-      yearsOfExperience: '5',
-      pharmacistDateOfBirth: '1985-05-15',
-      aadhaarNumber: '1234 5678 9012',
-      pharmacistMobile: '9876543230',
-      pharmacistEmail: 'pharmacist@example.com',
-      employmentType: 'Full-time',
+      pharmacistName: data.pharmacistName || '',
+      registrationId: data.registrationId || '',
+      qualification: data.qualification || '',
+      yearsOfExperience: data.yearsOfExperience || '',
+      pharmacistDateOfBirth: data.pharmacistDateOfBirth || '',
+      aadhaarNumber: data.aadhaarNumber || '',
+      pharmacistMobile: data.pharmacistMobile || '',
+      pharmacistEmail: data.pharmacistEmail || '',
+      employmentType: data.employmentType || '',
       pharmacistCertificate: null,
       pharmacistSignatureImage: null,
       appointmentDocument: null,
-      totalShopArea: '500',
-      shopLength: '25',
-      shopBreadth: '20',
-      storageAreaAvailable: true,
-      separateScheduleDrugStorage: true,
-      powerBackupAvailable: true,
-      acAvailable: true,
-      acBrand: 'Voltas',
-      acModel: 'V124',
-      acCapacity: '1.5',
-      refrigeratorAvailable: true,
-      refrigeratorBrand: 'Samsung',
-      refrigeratorModel: 'RT28',
-      refrigeratorCapacity: '253',
-      refrigeratorTempRange: '2°C to 8°C',
-      loginEmail: shop.email,
+      totalShopArea: data.totalShopArea || '',
+      shopLength: data.shopLength || '',
+      shopBreadth: data.shopBreadth || '',
+      storageAreaAvailable: !!data.storageAreaAvailable,
+      separateScheduleDrugStorage: !!data.separateScheduleDrugStorage,
+      powerBackupAvailable: !!data.powerBackupAvailable,
+      acAvailable: !!data.acAvailable,
+      acBrand: data.acBrand || '',
+      acModel: data.acModel || '',
+      acCapacity: data.acCapacity || '',
+      refrigeratorAvailable: !!data.refrigeratorAvailable,
+      refrigeratorBrand: data.refrigeratorBrand || '',
+      refrigeratorModel: data.refrigeratorModel || '',
+      refrigeratorCapacity: data.refrigeratorCapacity || '',
+      refrigeratorTempRange: data.refrigeratorTempRange || '',
+      username: shop.username || data.username || '',
       loginPassword: '',
       confirmPassword: '',
-    })
+    }))
     setView('update')
   }
 
@@ -157,27 +179,57 @@ export default function UpdateShopDetails() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    alert(`Shop details updated successfully for ${formData.shopFirmName}!`)
-    handleBackToList()
+    // Prepare formdata and send to backend
+    const payload = new FormData()
+    // append simple fields
+    Object.keys(formData).forEach((k) => {
+      const v = formData[k]
+      if (v === null || v === undefined) return
+      if (v instanceof File) return // files appended separately
+      payload.append(k, v)
+    })
+    // append files
+    if (formData.ownerAadharCardImage) payload.append('ownerAadharCardImage', formData.ownerAadharCardImage)
+    if (formData.pharmacistCertificate) payload.append('pharmacistCertificate', formData.pharmacistCertificate)
+    if (formData.pharmacistSignatureImage) payload.append('pharmacistSignatureImage', formData.pharmacistSignatureImage)
+    if (formData.appointmentDocument) payload.append('appointmentDocument', formData.appointmentDocument)
+
+    const targetId = selectedShop?.id || selectedShop?.licenseNo || selectedShop?.licenseNo
+    fetch(`${API_BASE_URL}/inspector/shops/${encodeURIComponent(targetId)}`, {
+      method: 'PUT',
+      body: payload
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert('Failed to update shop: ' + (err.message || res.statusText))
+        return
+      }
+      const data = await res.json()
+      alert('✅ Shop details saved to server. ID: ' + (data.shop?.id || 'N/A'))
+      handleBackToList()
+    }).catch((err) => {
+      console.error('Update shop error', err)
+      alert('Network error while updating shop. Is backend running?')
+    })
   }
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
-      <div className="w-full max-w-7xl mx-auto">
+    <div className="p-6 md:p-10 bg-[#020617] min-h-screen w-full overflow-x-hidden text-slate-100">
+      <div className="w-full max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             {view === 'update' && (
               <button 
                 onClick={handleBackToList}
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all hover:-translate-x-1"
               >
                 ← Back to List
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                {view === 'list' ? 'Update Shop Details' : `Update - ${selectedShop?.name}`}
+              <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+                {view === 'list' ? 'Update Shop Details' : `Update - ${selectedShop?.shop_name || (selectedShop?.data && selectedShop.data.shopFirmName) || selectedShop?.owner_name}`}
               </h1>
               <p className="text-slate-400">
                 {view === 'list' ? 'Search and select a shop to update details' : 'Modify shop information'}
@@ -190,19 +242,19 @@ export default function UpdateShopDetails() {
         {view === 'list' && (
           <>
             {/* Search and Filter */}
-            <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 mb-6 border border-slate-800 shadow-xl">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by name, license no, or owner..."
-                  className="md:col-span-2 px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="md:col-span-2 px-5 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-3 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-5 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 >
                   <option value="all">All Types</option>
                   <option value="wholesale">Wholesale Only</option>
@@ -212,51 +264,64 @@ export default function UpdateShopDetails() {
             </div>
 
             {/* Shops Table */}
-            <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-700">
+                  <thead className="bg-slate-950/80 border-b border-slate-800">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Shop Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">License No</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Type</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Owner</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Phone</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Shop Name</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">License No</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Owner</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Phone</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredShops.map((shop) => (
-                      <tr key={shop.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                        <td className="px-6 py-4 text-white font-semibold">{shop.name}</td>
-                        <td className="px-6 py-4 text-slate-300 font-mono text-sm">{shop.licenseNo}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            shop.type === 'Wholesale' ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white'
-                          }`}>
-                            {shop.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-300">{shop.owner}</td>
-                        <td className="px-6 py-4 text-slate-300">{shop.phone}</td>
-                        <td className="px-6 py-4 text-slate-300">{shop.email}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                            {shop.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => handleShopSelect(shop)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors text-sm"
-                          >
-                            Update Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-slate-800">
+                    {isLoading ? (
+                      <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-400">Loading licenses...</td></tr>
+                    ) : (
+                      filteredShops.map((lic) => {
+                        const shop = lic.data || {}
+                        const name = lic.shop_name || shop.shopFirmName || ''
+                        const licenseNo = lic.license_number || ''
+                        const type = (shop.licenseType || '')
+                        const owner = lic.owner_name || shop.fullName || ''
+                        const phone = shop.mobileNumber || ''
+                        const email = shop.email || ''
+                        return (
+                          <tr key={lic.id} className="hover:bg-slate-800/50 transition-colors duration-200">
+                            <td className="px-6 py-4 text-white font-semibold">{name}</td>
+                            <td className="px-6 py-4 text-slate-300 font-mono text-sm">{licenseNo}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                type.toLowerCase() === 'wholesale' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                              }`}>
+                                {type || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-slate-300">{owner}</td>
+                            <td className="px-6 py-4 text-slate-300">{phone}</td>
+                            <td className="px-6 py-4 text-slate-300">{email}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border border-green-500/30">
+                                Active
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() => handleShopSelect(lic)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-all shadow-lg hover:shadow-blue-500/30 text-xs font-bold uppercase tracking-wider"
+                              >
+                                Update Details
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -273,17 +338,17 @@ export default function UpdateShopDetails() {
         {view === 'update' && selectedShop && (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* A. Basic Establishment Details */}
-            <div className="bg-slate-800 rounded-lg p-8 border border-slate-700">
-              <h2 className="text-2xl font-bold text-white mb-6">A. Basic Establishment Details</h2>
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-3xl p-8 border border-slate-800 shadow-xl">
+              <h2 className="text-2xl font-bold text-white mb-6 border-b border-slate-800 pb-4">A. Basic Establishment Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Full Name (License Holder)</label>
+                  <label className="block text-slate-400 text-sm font-bold mb-2 uppercase tracking-wider">Full Name (License Holder)</label>
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
                 </div>
                 <div>
@@ -793,14 +858,14 @@ export default function UpdateShopDetails() {
             {/* E. Login Credentials */}
             <div className="bg-slate-800 rounded-lg p-8 border border-slate-700">
               <h2 className="text-2xl font-bold text-white mb-6">E. Login Credentials</h2>
-              <p className="text-slate-400 mb-6">Update login email and password for this shop account</p>
+              <p className="text-slate-400 mb-6">Update username and password for this shop account</p>
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Login Email</label>
+                  <label className="block text-slate-300 mb-2">Username</label>
                   <input
-                    type="email"
-                    name="loginEmail"
-                    value={formData.loginEmail}
+                    type="text"
+                    name="username"
+                    value={formData.username}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />

@@ -28,27 +28,27 @@ export default function Navbar({ userRole, onLogout }) {
   }
 
   return (
-    <nav className={`bg-gradient-to-r ${current.color} text-white shadow-lg sticky top-0 z-50`}>
-      <div className="px-6 py-4">
+    <nav className={`bg-gradient-to-r ${current.color} text-white shadow-xl sticky top-0 z-50 backdrop-blur-md bg-opacity-95 border-b border-white/10 transition-all duration-300`}>
+      <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Left: Logo & Brand */}
-          <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleHome}>
-            <div className="text-3xl">💊</div>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={handleHome}>
+            <div className="text-3xl group-hover:scale-110 transition-transform duration-300 drop-shadow-md">💊</div>
             <div>
-              <h1 className="text-2xl font-bold">DrugGuard</h1>
-              <p className="text-xs opacity-90">{current.title}</p>
+              <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm group-hover:text-white/90 transition-colors">DrugGuard</h1>
+              <p className="text-xs font-medium opacity-90 tracking-wider uppercase">{current.title}</p>
             </div>
           </div>
 
           {/* Right: User Menu */}
           <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-sm font-semibold">User Account</p>
-              <p className="text-xs opacity-90">Logged in as {current.title}</p>
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-semibold tracking-wide">User Account</p>
+              <p className="text-xs opacity-80 font-medium">Logged in as {current.title}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="bg-white text-slate-900 px-4 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-colors"
+              className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-5 py-2 rounded-xl font-semibold hover:bg-white hover:text-slate-900 transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95"
             >
               Logout
             </button>
@@ -56,5 +56,6 @@ export default function Navbar({ userRole, onLogout }) {
         </div>
       </div>
     </nav>
+
   )
 }

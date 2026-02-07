@@ -43,12 +43,12 @@ export default function Sidebar({ userRole }) {
   const isActive = (path) => location.pathname === path
 
   return (
-    <div className={`bg-slate-800 text-white transition-all duration-300 min-h-screen sticky top-20 overflow-y-auto ${isExpanded ? 'w-64' : 'w-20'}`}>
+    <div className={`bg-slate-900 text-white transition-all duration-500 ease-in-out min-h-screen sticky top-20 overflow-y-auto border-r border-slate-800 shadow-2xl ${isExpanded ? 'w-72' : 'w-24'}`}>
       {/* Toggle Button */}
-      <div className="p-4 border-b border-slate-700">
+      <div className="p-4 border-b border-slate-800 flex justify-end">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-center bg-slate-700 hover:bg-slate-600 p-2 rounded-lg transition-colors"
+          className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all duration-300 hover:scale-105 active:scale-95"
         >
           {isExpanded ? '◀️' : '▶️'}
         </button>
@@ -60,15 +60,15 @@ export default function Sidebar({ userRole }) {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
+            className={`flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${
               isActive(item.path)
-                ? 'bg-blue-600 text-white font-semibold shadow-lg'
-                : 'hover:bg-slate-700 text-slate-300'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/20 translate-x-1'
+                : 'hover:bg-slate-800 text-slate-400 hover:text-white hover:translate-x-1'
             }`}
             title={item.label}
           >
-            <span className="text-lg">{item.icon}</span>
-            {isExpanded && <span className="text-sm">{item.label}</span>}
+            <span className="text-xl group-hover:scale-110 transition-transform duration-300">{item.icon}</span>
+            {isExpanded && <span className="text-sm font-medium tracking-wide whitespace-nowrap">{item.label}</span>}
           </Link>
         ))}
       </nav>

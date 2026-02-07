@@ -119,21 +119,21 @@ export default function ViewRetailerPurchases() {
   )
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
-      <div className="w-full">
+    <div className="p-6 md:p-10 bg-[#020617] min-h-screen w-full overflow-x-hidden text-slate-100">
+      <div className="w-full max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             {view !== 'shops' && (
               <button 
                 onClick={view === 'bills' ? handleBackToShops : handleBackToBills}
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all hover:-translate-x-1"
               >
                 ← Back
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
+              <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
                 {view === 'shops' && 'Retailer Shops'}
                 {view === 'bills' && `Purchase Bills - ${selectedShop?.name}`}
                 {view === 'products' && `Bill Details - ${selectedBill?.billId}`}
@@ -148,14 +148,14 @@ export default function ViewRetailerPurchases() {
         </div>
 
         {/* Search Section - Always visible */}
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
+        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 mb-6 border border-slate-800 shadow-xl">
           <h3 className="text-lg font-semibold text-white mb-4">🔍 Search Medicine by Name or Batch Number</h3>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by medicine name or batch number..."
-            className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full px-5 py-4 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-lg"
           />
           
           {/* Search Results */}
@@ -163,24 +163,24 @@ export default function ViewRetailerPurchases() {
             <div className="mt-6">
               <h4 className="text-white font-semibold mb-4">Search Results ({filteredMedicines.length})</h4>
               {filteredMedicines.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-slate-800">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-700">
+                    <thead className="bg-slate-950/80">
                       <tr>
-                        <th className="px-4 py-3 text-left text-slate-300">Medicine Name</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Manufacturer</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Batch No</th>
-                        <th className="px-4 py-3 text-left text-slate-300">MRP</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Rate</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Bill ID</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Date</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Medicine Name</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Manufacturer</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Batch No</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">MRP</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Rate</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Retailer</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Wholesaler</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Bill ID</th>
+                        <th className="px-4 py-3 text-left text-slate-400 font-bold uppercase tracking-wider">Date</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-800">
                       {filteredMedicines.map((med, idx) => (
-                        <tr key={idx} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                        <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 text-slate-300 font-semibold">{med.medicineName}</td>
                           <td className="px-4 py-3 text-slate-300">{med.manufacturer}</td>
                           <td className="px-4 py-3 text-slate-300 font-mono text-xs">{med.batchNo}</td>
@@ -209,27 +209,27 @@ export default function ViewRetailerPurchases() {
               <div 
                 key={shop.id}
                 onClick={() => handleShopClick(shop)}
-                className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-purple-500 cursor-pointer transition-all hover:shadow-lg hover:shadow-purple-500/20"
+                className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-800 hover:border-purple-500 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1 group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-1">{shop.name}</h3>
+                    <h3 className="text-xl font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">{shop.name}</h3>
                     <p className="text-slate-400 text-sm">License: {shop.licenseNo}</p>
                   </div>
-                  <span className="text-3xl">🏪</span>
+                  <span className="text-4xl group-hover:scale-110 transition-transform">🏪</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-700">
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800">
                   <div>
-                    <p className="text-slate-400 text-xs mb-1">Total Bills</p>
+                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Bills</p>
                     <p className="text-white font-bold text-lg">{shop.totalBills}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-xs mb-1">Total Purchases</p>
+                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Purchases</p>
                     <p className="text-purple-400 font-bold text-lg">{shop.totalPurchases}</p>
                   </div>
                 </div>
-                <div className="mt-4 text-right">
-                  <span className="text-purple-400 text-sm">View Bills →</span>
+                <div className="mt-6 text-right">
+                  <span className="text-purple-400 text-sm font-semibold group-hover:underline">View Bills →</span>
                 </div>
               </div>
             ))}
@@ -238,22 +238,22 @@ export default function ViewRetailerPurchases() {
 
         {/* View: Bills for Selected Shop */}
         {view === 'bills' && selectedShop && (
-          <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-700">
+                <thead className="bg-slate-950/80 border-b border-slate-800">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bill ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Wholesaler</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Items</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Total Amount</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Bill ID</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Wholesaler</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Items</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-6 py-5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-800">
                   {billsByShop[selectedShop.id]?.map((bill) => (
-                    <tr key={bill.billId} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                    <tr key={bill.billId} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4 text-purple-400 font-semibold">{bill.billId}</td>
                       <td className="px-6 py-4 text-slate-300">{bill.date}</td>
                       <td className="px-6 py-4 text-slate-300">{bill.wholesaler}</td>
@@ -262,7 +262,7 @@ export default function ViewRetailerPurchases() {
                       <td className="px-6 py-4">
                         <button 
                           onClick={() => handleBillClick(bill)}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors text-sm"
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-all shadow-lg hover:shadow-purple-500/30 text-xs font-bold uppercase tracking-wider"
                         >
                           View Details
                         </button>
