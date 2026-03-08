@@ -15,6 +15,8 @@ export default function Sidebar({ userRole }) {
     ],
     wholesaler: [
       { label: 'Dashboard', path: '/wholesaler/dashboard', icon: '📊' },
+      { label: 'Purchase from Manufacturer', path: '/wholesaler/purchase-from-manufacturer', icon: '🛒' },
+      { label: 'Approve Stock', path: '/wholesaler/approve-stock', icon: '✓' },
       { label: 'Sell to Retailer', path: '/wholesaler/sell-to-retailer', icon: '💰' },
       { label: 'Sales History', path: '/wholesaler/sales-history', icon: '📈' },
       { label: 'Stock Management', path: '/wholesaler/stock-management', icon: '📦' },

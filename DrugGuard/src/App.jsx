@@ -25,6 +25,8 @@ import StockManagement from './wholesaler/StockManagement'
 import ReturnRequests from './wholesaler/ReturnRequests'
 import WholesalerProfile from './wholesaler/WholesalerProfile'
 import PendingDeliveries from './wholesaler/PendingDeliveries'
+import PurchaseFromManufacturer from './wholesaler/PurchaseFromManufacturer'
+import WholesalerApproveStock from './wholesaler/ApproveStock'
 
 // Retailer Components
 import RetailerDashboard from './retailer/RetailerDashboard'
@@ -81,6 +83,8 @@ function App() {
             {userRole === 'wholesaler' && (
               <>
                 <Route path="/wholesaler/dashboard" element={<WholesalerDashboard />} />
+                <Route path="/wholesaler/purchase-from-manufacturer" element={<PurchaseFromManufacturer />} />
+                <Route path="/wholesaler/approve-stock" element={<WholesalerApproveStock />} />
                 <Route path="/wholesaler/sell-to-retailer" element={<SellToRetailer />} />
                 <Route path="/wholesaler/sales-history" element={<SalesHistory />} />
                 <Route path="/wholesaler/stock-management" element={<StockManagement />} />

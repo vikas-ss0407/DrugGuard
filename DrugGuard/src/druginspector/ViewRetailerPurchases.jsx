@@ -38,37 +38,37 @@ export default function ViewRetailerPurchases() {
   // Mock data for products (by bill)
   const productsByBill = {
     'P001': [
-      { id: 1, medicineName: 'Paracetamol 500mg', manufacturer: 'Cipla Ltd.', batchNo: 'PCT2024A123', mrp: '₹25', rate: '₹22', quantity: 500, total: '₹11,000' },
-      { id: 2, medicineName: 'Vitamin C Tablets', manufacturer: 'Sun Pharma', batchNo: 'VTC2024B456', mrp: '₹150', rate: '₹135', quantity: 50, total: '₹6,750' },
-      { id: 3, medicineName: 'Cough Syrup', manufacturer: 'Himalaya', batchNo: 'CSY2024E345', mrp: '₹85', rate: '₹78', quantity: 100, total: '₹7,800' },
+      { id: 1, medicineName: 'Paracetamol 500mg', manufacturer: 'Cipla Ltd.', batchNo: 'PCT2024A123', manufactureDate: '2024-01-15', expiryDate: '2026-01-14', mrp: '₹25', rate: '₹22', quantity: 500, total: '₹11,000' },
+      { id: 2, medicineName: 'Vitamin C Tablets', manufacturer: 'Sun Pharma', batchNo: 'VTC2024B456', manufactureDate: '2024-02-10', expiryDate: '2026-02-09', mrp: '₹150', rate: '₹135', quantity: 50, total: '₹6,750' },
+      { id: 3, medicineName: 'Cough Syrup', manufacturer: 'Himalaya', batchNo: 'CSY2024E345', manufactureDate: '2024-01-20', expiryDate: '2025-07-19', mrp: '₹85', rate: '₹78', quantity: 100, total: '₹7,800' },
     ],
     'P002': [
-      { id: 4, medicineName: 'Amoxicillin 250mg', manufacturer: 'Lupin Ltd.', batchNo: 'AMX2024C789', mrp: '₹45', rate: '₹42', quantity: 200, total: '₹8,400' },
-      { id: 5, medicineName: 'Ibuprofen 400mg', manufacturer: 'Dr. Reddy\'s', batchNo: 'IBU2024D012', mrp: '₹32', rate: '₹30', quantity: 300, total: '₹9,000' },
+      { id: 4, medicineName: 'Amoxicillin 250mg', manufacturer: 'Lupin Ltd.', batchNo: 'AMX2024C789', manufactureDate: '2024-01-05', expiryDate: '2026-01-04', mrp: '₹45', rate: '₹42', quantity: 200, total: '₹8,400' },
+      { id: 5, medicineName: 'Ibuprofen 400mg', manufacturer: 'Dr. Reddy\'s', batchNo: 'IBU2024D012', manufactureDate: '2024-02-01', expiryDate: '2026-01-31', mrp: '₹32', rate: '₹30', quantity: 300, total: '₹9,000' },
     ],
     'P003': [
-      { id: 6, medicineName: 'Aspirin 75mg', manufacturer: 'Bayer', batchNo: 'ASP2024F678', mrp: '₹18', rate: '₹15', quantity: 500, total: '₹7,500' },
-      { id: 7, medicineName: 'Metformin 500mg', manufacturer: 'USV Ltd.', batchNo: 'MET2024G901', mrp: '₹12', rate: '₹10', quantity: 800, total: '₹8,000' },
+      { id: 6, medicineName: 'Aspirin 75mg', manufacturer: 'Bayer', batchNo: 'ASP2024F678', manufactureDate: '2024-01-18', expiryDate: '2025-07-17', mrp: '₹18', rate: '₹15', quantity: 500, total: '₹7,500' },
+      { id: 7, medicineName: 'Metformin 500mg', manufacturer: 'USV Ltd.', batchNo: 'MET2024G901', manufactureDate: '2023-12-25', expiryDate: '2025-12-24', mrp: '₹12', rate: '₹10', quantity: 800, total: '₹8,000' },
     ],
     'P101': [
-      { id: 8, medicineName: 'Atorvastatin 10mg', manufacturer: 'Ranbaxy', batchNo: 'ATV2024H234', mrp: '₹55', rate: '₹50', quantity: 100, total: '₹5,000' },
-      { id: 9, medicineName: 'Omeprazole 20mg', manufacturer: 'Cadila', batchNo: 'OME2024I567', mrp: '₹28', rate: '₹25', quantity: 400, total: '₹10,000' },
+      { id: 8, medicineName: 'Atorvastatin 10mg', manufacturer: 'Ranbaxy', batchNo: 'ATV2024H234', manufactureDate: '2024-01-08', expiryDate: '2026-01-07', mrp: '₹55', rate: '₹50', quantity: 100, total: '₹5,000' },
+      { id: 9, medicineName: 'Omeprazole 20mg', manufacturer: 'Cadila', batchNo: 'OME2024I567', manufactureDate: '2024-01-12', expiryDate: '2025-07-11', mrp: '₹28', rate: '₹25', quantity: 400, total: '₹10,000' },
     ],
     'P102': [
-      { id: 10, medicineName: 'Azithromycin 500mg', manufacturer: 'Abbott', batchNo: 'AZI2024J890', mrp: '₹65', rate: '₹60', quantity: 150, total: '₹9,000' },
+      { id: 10, medicineName: 'Azithromycin 500mg', manufacturer: 'Abbott', batchNo: 'AZI2024J890', manufactureDate: '2024-02-03', expiryDate: '2026-02-02', mrp: '₹65', rate: '₹60', quantity: 150, total: '₹9,000' },
     ],
     'P201': [
-      { id: 11, medicineName: 'Cetirizine 10mg', manufacturer: 'GlaxoSmithKline', batchNo: 'CET2024K123', mrp: '₹8', rate: '₹7', quantity: 1000, total: '₹7,000' },
-      { id: 12, medicineName: 'Insulin Glargine', manufacturer: 'Novo Nordisk', batchNo: 'INS2024L456', mrp: '₹850', rate: '₹800', quantity: 25, total: '₹20,000' },
+      { id: 11, medicineName: 'Cetirizine 10mg', manufacturer: 'GlaxoSmithKline', batchNo: 'CET2024K123', manufactureDate: '2024-01-25', expiryDate: '2026-01-24', mrp: '₹8', rate: '₹7', quantity: 1000, total: '₹7,000' },
+      { id: 12, medicineName: 'Insulin Glargine', manufacturer: 'Novo Nordisk', batchNo: 'INS2024L456', manufactureDate: '2024-01-30', expiryDate: '2025-01-29', mrp: '₹850', rate: '₹800', quantity: 25, total: '₹20,000' },
     ],
     'P202': [
-      { id: 13, medicineName: 'Losartan 50mg', manufacturer: 'Merck', batchNo: 'LOS2024M789', mrp: '₹22', rate: '₹20', quantity: 600, total: '₹12,000' },
+      { id: 13, medicineName: 'Losartan 50mg', manufacturer: 'Merck', batchNo: 'LOS2024M789', manufactureDate: '2024-01-11', expiryDate: '2026-01-10', mrp: '₹22', rate: '₹20', quantity: 600, total: '₹12,000' },
     ],
     'P301': [
-      { id: 14, medicineName: 'Pantoprazole 40mg', manufacturer: 'Cipla Ltd.', batchNo: 'PAN2024N012', mrp: '₹18', rate: '₹16', quantity: 700, total: '₹11,200' },
+      { id: 14, medicineName: 'Pantoprazole 40mg', manufacturer: 'Cipla Ltd.', batchNo: 'PAN2024N012', manufactureDate: '2024-01-06', expiryDate: '2026-01-05', mrp: '₹18', rate: '₹16', quantity: 700, total: '₹11,200' },
     ],
     'P302': [
-      { id: 15, medicineName: 'Dolo 650mg', manufacturer: 'Micro Labs', batchNo: 'DOL2024O345', mrp: '₹35', rate: '₹32', quantity: 300, total: '₹9,600' },
+      { id: 15, medicineName: 'Dolo 650mg', manufacturer: 'Micro Labs', batchNo: 'DOL2024O345', manufactureDate: '2024-01-22', expiryDate: '2026-01-21', mrp: '₹35', rate: '₹32', quantity: 300, total: '₹9,600' },
     ]
   }
 
@@ -307,11 +307,13 @@ export default function ViewRetailerPurchases() {
                   <thead className="bg-slate-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-slate-300">Medicine Name</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Manufacturer</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Mfg Comp</th>
                       <th className="px-4 py-3 text-left text-slate-300">Batch No</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Mfg Date</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Exp Date</th>
                       <th className="px-4 py-3 text-left text-slate-300">MRP</th>
                       <th className="px-4 py-3 text-left text-slate-300">Rate</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Quantity</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Qty</th>
                       <th className="px-4 py-3 text-left text-slate-300">Total</th>
                     </tr>
                   </thead>
@@ -321,6 +323,8 @@ export default function ViewRetailerPurchases() {
                         <td className="px-4 py-3 text-white font-semibold">{product.medicineName}</td>
                         <td className="px-4 py-3 text-slate-300">{product.manufacturer}</td>
                         <td className="px-4 py-3 text-slate-300 font-mono text-xs">{product.batchNo}</td>
+                        <td className="px-4 py-3 text-slate-300 text-xs">{product.manufactureDate}</td>
+                        <td className="px-4 py-3 text-slate-300 text-xs">{product.expiryDate}</td>
                         <td className="px-4 py-3 text-slate-300">{product.mrp}</td>
                         <td className="px-4 py-3 text-green-400 font-semibold">{product.rate}</td>
                         <td className="px-4 py-3 text-slate-300">{product.quantity}</td>

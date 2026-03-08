@@ -1,22 +1,39 @@
 export default function WholesalerDashboard() {
-  const stats = [
-    { label: 'Available Stock', value: '15,400 units', icon: '📦', color: 'from-blue-500 to-blue-600' },
-    { label: 'Retailers Served', value: '38', icon: '🏪', color: 'from-green-500 to-green-600' },
-    { label: 'Monthly Sales', value: '₹8,50,000', icon: '💰', color: 'from-purple-500 to-purple-600' },
-    { label: 'Pending Orders', value: '7', icon: '📋', color: 'from-orange-500 to-orange-600' }
+  // Product inventory with category and stock
+  const products = [
+    { id: 1, name: 'Paracetamol 500mg', category: 'Strip', stock: 8, batchNo: 'PCT2024A123' },
+    { id: 2, name: 'Aspirin 75mg', category: 'Strip', stock: 15, batchNo: 'ASP2024F678' },
+    { id: 3, name: 'Vitamin C Tablets', category: 'Strip', stock: 3, batchNo: 'VTC2024B456' },
+    { id: 4, name: 'Ibuprofen 400mg', category: 'Strip', stock: 25, batchNo: 'IBU2024D012' },
+    { id: 5, name: 'Cough Syrup 100ml', category: 'Bottle', stock: 7, batchNo: 'CSY2024E345' },
+    { id: 6, name: 'Amoxicillin Susp', category: 'Bottle', stock: 12, batchNo: 'AMX2024C789' },
+    { id: 7, name: 'Multivitamin Syrup', category: 'Bottle', stock: 4, batchNo: 'MVS2024G123' },
+    { id: 8, name: 'Insulin Injection', category: 'Amples', stock: 6, batchNo: 'INS2024L456' },
+    { id: 9, name: 'Diclofenac Injection', category: 'Amples', stock: 2, batchNo: 'DCL2024H789' },
+    { id: 10, name: 'B12 Injection', category: 'Amples', stock: 9, batchNo: 'B12-2024M345' },
+    { id: 11, name: 'Gentamicin Injection', category: 'Amples', stock: 18, batchNo: 'GEN2024N901' },
+    { id: 12, name: 'Metformin 500mg', category: 'Strip', stock: 5, batchNo: 'MET2024G901' },
+    { id: 13, name: 'ORS Powder', category: 'Packet', stock: 6, batchNo: 'ORS2024P456' },
+    { id: 14, name: 'Protein Powder', category: 'Packet', stock: 3, batchNo: 'PRT2024P789' },
+    { id: 15, name: 'Glucose Powder', category: 'Packet', stock: 9, batchNo: 'GLU2024P123' },
+    { id: 16, name: 'Electral Powder', category: 'Packet', stock: 15, batchNo: 'ELE2024P567' },
   ]
 
-  const recentSales = [
-    { id: 1, retailer: 'City Pharmacy', drug: 'Paracetamol 500mg', quantity: 500, amount: '₹12,500', date: '2024-02-03', status: 'Delivered' },
-    { id: 2, retailer: 'Main Street Clinic', drug: 'Amoxicillin 250mg', quantity: 200, amount: '₹8,500', date: '2024-02-02', status: 'In Transit' },
-    { id: 3, retailer: 'Central Pharmacy', drug: 'Ibuprofen 400mg', quantity: 1000, amount: '₹30,000', date: '2024-02-01', status: 'Delivered' },
+  // Shop supply frequency (how many times supplied in last 3 months)
+  const shopSupplyFrequency = [
+    { id: 1, shopName: 'City Pharmacy', licenseNo: 'CHE/RT/2024/56789', supplyCount: 28, totalValue: '₹3,25,000' },
+    { id: 2, shopName: 'Central Pharmacy', licenseNo: 'CHE/RT/2024/56791', supplyCount: 24, totalValue: '₹2,95,000' },
+    { id: 3, shopName: 'Main Street Clinic', licenseNo: 'CHE/RT/2024/56790', supplyCount: 19, totalValue: '₹2,15,000' },
+    { id: 4, shopName: 'Green Valley Hospital', licenseNo: 'CHE/RT/2024/56792', supplyCount: 16, totalValue: '₹1,85,000' },
+    { id: 5, shopName: 'Wellness Medico', licenseNo: 'CHE/RT/2024/56793', supplyCount: 12, totalValue: '₹1,42,000' },
+    { id: 6, shopName: 'CarePoint Pharmacy', licenseNo: 'CHE/RT/2024/56794', supplyCount: 8, totalValue: '₹95,000' },
   ]
 
-  const topSellingDrugs = [
-    { rank: 1, drug: 'Paracetamol 500mg', sold: 5000, revenue: '₹1,25,000' },
-    { rank: 2, drug: 'Aspirin 75mg', sold: 3000, revenue: '₹45,000' },
-    { rank: 3, drug: 'Ibuprofen 400mg', sold: 2500, revenue: '₹75,000' },
-  ]
+  // Filter all low stock items (< 10) regardless of category
+  const lowStockProducts = products.filter(p => p.stock < 10).sort((a, b) => a.stock - b.stock)
+
+  // Sort shops by supply frequency (descending)
+  const topSuppliedShops = shopSupplyFrequency.sort((a, b) => b.supplyCount - a.supplyCount)
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -24,82 +41,91 @@ export default function WholesalerDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Wholesaler Dashboard</h1>
-          <p className="text-slate-400">Overview of your sales and inventory</p>
+          <p className="text-slate-400">Low stock alerts and supply frequency monitoring</p>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className={`bg-gradient-to-br ${stat.color} rounded-lg p-6 text-white shadow-lg`}>
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-sm font-semibold opacity-90">{stat.label}</h3>
-                <span className="text-3xl">{stat.icon}</span>
-              </div>
-              <p className="text-3xl font-bold">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Sales */}
-          <div className="lg:col-span-2 bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">Recent Sales</h2>
-              <a href="#" className="text-blue-400 hover:text-blue-300 text-sm">View All →</a>
-            </div>
+        {/* Low Stock Alerts */}
+        <div className="mb-8">
+          <div className="bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
+            <h2 className="text-2xl font-bold text-white mb-6">🚨 Low Stock Alerts (Below 10 Units)</h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-600">
-                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Retailer</th>
-                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Drug</th>
-                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Qty</th>
-                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Amount</th>
-                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Status</th>
+              <table className="w-full">
+                <thead className="bg-slate-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Product Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Category</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Batch No</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Stock</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentSales.map((sale) => (
-                    <tr key={sale.id} className="border-b border-slate-700 hover:bg-slate-700 transition-colors">
-                      <td className="py-3 px-4 text-slate-300">{sale.retailer}</td>
-                      <td className="py-3 px-4 text-slate-300">{sale.drug}</td>
-                      <td className="py-3 px-4 text-slate-300">{sale.quantity}</td>
-                      <td className="py-3 px-4 text-slate-300">{sale.amount}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          sale.status === 'Delivered' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-                        }`}>
-                          {sale.status}
-                        </span>
-                      </td>
+                  {lowStockProducts.length > 0 ? (
+                    lowStockProducts.map((product) => (
+                      <tr key={product.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                        <td className="px-6 py-4 text-white font-semibold">{product.name}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-600 text-white">
+                            {product.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300 font-mono text-sm">{product.batchNo}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                            product.stock <= 3 ? 'bg-red-600 text-white' :
+                            product.stock <= 6 ? 'bg-orange-500 text-white' :
+                            'bg-yellow-500 text-black'
+                          }`}>
+                            {product.stock} units
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-8 text-center text-slate-400">All products have sufficient stock.</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
+        </div>
 
-          {/* Top Selling Drugs */}
-          <div className="bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
-            <h2 className="text-xl font-bold text-white mb-6">Top Selling Drugs</h2>
-            <div className="space-y-4">
-              {topSellingDrugs.map((drug) => (
-                <div key={drug.rank} className="bg-slate-700 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="font-semibold text-white">{drug.drug}</p>
-                      <p className="text-xs text-slate-400">#{drug.rank} Best Seller</p>
-                    </div>
-                    <span className="text-2xl font-bold text-blue-400">{drug.rank}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">{drug.sold} units</span>
-                    <span className="text-green-400 font-semibold">{drug.revenue}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Most Frequently Supplied Shops */}
+        <div className="bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
+          <h2 className="text-2xl font-bold text-white mb-6">🏪 Most Frequently Supplied Shops</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-700">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Rank</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Shop Name</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">License No</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Supply Count (3M)</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Total Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topSuppliedShops.map((shop, index) => (
+                  <tr key={shop.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+                        index === 0 ? 'bg-yellow-500 text-black' : 
+                        index === 1 ? 'bg-slate-400 text-black' : 
+                        index === 2 ? 'bg-orange-600 text-white' : 
+                        'bg-slate-600 text-white'
+                      }`}>
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-white font-semibold">{shop.shopName}</td>
+                    <td className="px-6 py-4 text-slate-300 text-sm font-mono">{shop.licenseNo}</td>
+                    <td className="px-6 py-4 text-blue-400 font-bold text-lg">{shop.supplyCount} times</td>
+                    <td className="px-6 py-4 text-green-400 font-bold text-lg">{shop.totalValue}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
