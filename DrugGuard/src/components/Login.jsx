@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { loginInspector } from '../api/druginspector/inspectorApi'
+import { loginWholesaler } from '../api/wholesaler/wholesalerApi'
+import { loginRetailer } from '../api/retailer/retailerApi'
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate()
@@ -16,8 +19,7 @@ export default function Login({ onLogin }) {
   const roleDetails = {
     inspector: { title: 'Drug Inspector', path: '/inspector/dashboard', icon: '🔍' },
     wholesaler: { title: 'Wholesaler', path: '/wholesaler/dashboard', icon: '📦' },
-    retailer: { title: 'Retailer', path: '/retailer/dashboard', icon: '🏪' },
-    authority: { title: 'Higher Authority', path: '/authority/dashboard', icon: '📊' }
+    retailer: { title: 'Retailer', path: '/retailer/dashboard', icon: '🏪' }
   }
 
   const currentRole = roleDetails[roleParam] || roleDetails.inspector
@@ -45,7 +47,7 @@ export default function Login({ onLogin }) {
     return newErrors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const newErrors = validateForm()
 
@@ -54,9 +56,22 @@ export default function Login({ onLogin }) {
       return
     }
 
-    // Mock authentication - in real app, this would call backend
-    onLogin(roleParam || 'inspector')
-    navigate(currentRole.path)
+    try {
+      if (roleParam === 'inspector' || !roleParam) {
+        await loginInspector(formData.username.trim(), formData.password)
+      } else if (roleParam === 'wholesaler') {
+        await loginWholesaler(formData.username.trim(), formData.password)
+      } else if (roleParam === 'retailer') {
+        await loginRetailer(formData.username.trim(), formData.password)
+      }
+
+      onLogin(roleParam || 'inspector')
+      navigate(currentRole.path)
+    } catch (error) {
+      setErrors({
+        general: error.message || 'Unable to sign in'
+      })
+    }
   }
 
   const handleBackClick = () => {
@@ -147,15 +162,16 @@ export default function Login({ onLogin }) {
             >
               Sign In
             </button>
+            {errors.general && <p className="text-red-400 text-sm text-center">{errors.general}</p>}
           </form>
 
           {/* Demo Credentials */}
           <div className="mt-8 pt-6 border-t border-slate-700">
             <p className="text-center text-slate-400 text-sm mb-4">Demo Credentials</p>
             <div className="bg-slate-700 rounded p-4 space-y-2 text-sm text-slate-300">
-              <div><span className="font-semibold">Username:</span> demo_user</div>
-              <div><span className="font-semibold">Password:</span> demo123</div>
-              <p className="text-slate-500 mt-2 italic">Use any credentials to proceed (UI only - no backend)</p>
+              <div><span className="font-semibold">Inspector:</span> coimbatore@gmail.com / Cbe@641001</div>
+              <div><span className="font-semibold">Wholesaler/Retailer:</span> Use license credentials created by inspector</div>
+              <p className="text-slate-500 mt-2 italic">This screen now uses Firebase + backend APIs</p>
             </div>
           </div>
         </div>

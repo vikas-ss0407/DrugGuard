@@ -40,12 +40,6 @@ import RetailerPurchaseHistory from './retailer/RetailerPurchaseHistory'
 import RetailerSalesHistory from './retailer/RetailerSalesHistory'
 import RetailerProfile from './retailer/RetailerProfile'
 
-// Higher Authority Components
-import HADashboard from './higherauthority/HADashboard'
-import HAViewWholesalerSales from './higherauthority/HAViewWholesalerSales'
-import HAViewRetailerPurchases from './higherauthority/HAViewRetailerPurchases'
-import HAStockReports from './higherauthority/HAStockReports'
-
 function App() {
   const [userRole, setUserRole] = useState(null)
 
@@ -110,21 +104,10 @@ function App() {
               </>
             )}
 
-            {/* Higher Authority Routes */}
-            {userRole === 'authority' && (
-              <>
-                <Route path="/authority/dashboard" element={<HADashboard />} />
-                <Route path="/authority/view-wholesaler-sales" element={<HAViewWholesalerSales />} />
-                <Route path="/authority/view-retailer-purchases" element={<HAViewRetailerPurchases />} />
-                <Route path="/authority/stock-reports" element={<HAStockReports />} />
-              </>
-            )}
-
             {/* Default Routes */}
             <Route path="/inspector/dashboard" element={userRole === 'inspector' ? <DIDashboard /> : <Navigate to="/" />} />
             <Route path="/wholesaler/dashboard" element={userRole === 'wholesaler' ? <WholesalerDashboard /> : <Navigate to="/" />} />
             <Route path="/retailer/dashboard" element={userRole === 'retailer' ? <RetailerDashboard /> : <Navigate to="/" />} />
-            <Route path="/authority/dashboard" element={userRole === 'authority' ? <HADashboard /> : <Navigate to="/" />} />
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" />} />

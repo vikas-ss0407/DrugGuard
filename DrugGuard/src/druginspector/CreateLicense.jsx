@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createLicenseByInspector } from '../api/druginspector/inspectorApi'
 
 export default function CreateLicense() {
   const [step, setStep] = useState(1)
@@ -71,6 +72,7 @@ export default function CreateLicense() {
   })
 
   const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState('')
 
   // Generate License Number based on District and Year
   const generateLicenseNumber = () => {
@@ -307,7 +309,7 @@ System Version: 1.0
       if (!formData.shopLength) newErrors.shopLength = 'Shop length is required'
       if (!formData.shopBreadth) newErrors.shopBreadth = 'Shop breadth is required'
     } else if (step === 5) {
-      if (!formData.loginEmail) newErrors.loginEmail = 'Login email is required'
+      if (!formData.loginEmail) newErrors.loginEmail = 'Login username is required'
       if (!formData.loginPassword) newErrors.loginPassword = 'Password is required'
       if (!formData.confirmPassword) newErrors.confirmPassword = 'Confirm password is required'
       if (formData.loginPassword && formData.confirmPassword && formData.loginPassword !== formData.confirmPassword) {
@@ -336,32 +338,48 @@ System Version: 1.0
     setErrors({})
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const newErrors = validateStep()
-    
+
     if (Object.keys(newErrors).length === 0) {
+      setSubmitError('')
+      const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
+
       // Generate license number and password
       const licenseNumber = generateLicenseNumber()
       const generatedPassword = generatePassword()
       const licenseDocument = generateLicenseDocument(licenseNumber)
-      
+
       const finalData = {
         ...formData,
         licenseNumber,
         generatedPassword,
         licenseDocument
       }
-      
+
+      try {
+        await createLicenseByInspector({
+          ...finalData,
+          inspectorEmail: session.email || '',
+          inspectorDistrict: session.district || formData.district,
+          loginUsername: formData.loginEmail,
+          loginPassword: formData.loginPassword
+        })
+      } catch (error) {
+        setSubmitError(error.message || 'Failed to create license in backend')
+        return
+      }
+
       // Download license as text file
       const element = document.createElement('a')
-      const file = new Blob([licenseDocument], {type: 'text/plain'})
+      const file = new Blob([licenseDocument], { type: 'text/plain' })
       element.href = URL.createObjectURL(file)
       element.download = `LICENSE_${licenseNumber.replace(/\//g, '_')}_${new Date().getTime()}.txt`
       document.body.appendChild(element)
       element.click()
       document.body.removeChild(element)
-      
+
       // Show success message with credentials
       alert(
         `✅ LICENSE GENERATED SUCCESSFULLY!\n\n` +
@@ -370,29 +388,29 @@ System Version: 1.0
         `Owner: ${formData.fullName}\n` +
         `Pharmacist: ${formData.pharmacistName}\n\n` +
         `LOGIN CREDENTIALS:\n` +
-        `Email: ${formData.loginEmail}\n` +
+        `Username: ${formData.loginEmail}\n` +
         `Temporary Password: ${formData.loginPassword}\n\n` +
         `License Document has been downloaded!\n` +
         `Please save all documents securely.\n` +
         `License is valid for 5 years.`
       )
-      
+
       console.log('License Data:', finalData)
-      
+
       // Reset form
       setFormData({
         fullName: '', dateOfBirth: '', licenseType: '', shopFirmName: '', ownershipType: '',
         doorNo: '', area: '', city: '', post: '', district: '', state: '', pinCode: '',
-        mobileNumber: '', email: '', ownerPanCard: '', ownerAadharNumber: '', 
+        mobileNumber: '', email: '', ownerPanCard: '', ownerAadharNumber: '',
         ownerAadharCardImage: null, pharmacistName: '', registrationId: '', qualification: '',
-        yearsOfExperience: '', pharmacistDateOfBirth: '', aadhaarNumber: '', 
+        yearsOfExperience: '', pharmacistDateOfBirth: '', aadhaarNumber: '',
         pharmacistMobile: '', pharmacistEmail: '', employmentType: '', appointmentDocument: null,
         pharmacistCertificate: null, pharmacistSignatureImage: null,
-        totalShopArea: '', shopLength: '', shopBreadth: '', storageAreaAvailable: false, 
-        separateScheduleDrugStorage: false, powerBackupAvailable: false, acAvailable: false, 
-        acBrand: '', acModel: '', acCapacity: '', refrigeratorAvailable: false, 
-        refrigeratorBrand: '', refrigeratorModel: '', refrigeratorCapacity: '', 
-        refrigeratorTempRange: '', loginEmail: '', loginPassword: '', confirmPassword: '', 
+        totalShopArea: '', shopLength: '', shopBreadth: '', storageAreaAvailable: false,
+        separateScheduleDrugStorage: false, powerBackupAvailable: false, acAvailable: false,
+        acBrand: '', acModel: '', acCapacity: '', refrigeratorAvailable: false,
+        refrigeratorBrand: '', refrigeratorModel: '', refrigeratorCapacity: '',
+        refrigeratorTempRange: '', loginEmail: '', loginPassword: '', confirmPassword: '',
         licenseNumber: '', generatedPassword: '', licenseCreationDate: new Date().toLocaleDateString()
       })
       setStep(1)
@@ -1054,13 +1072,13 @@ System Version: 1.0
               
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Login Email *</label>
+                  <label className="block text-slate-300 mb-2">Login Username *</label>
                   <input
-                    type="email"
+                    type="text"
                     name="loginEmail"
                     value={formData.loginEmail}
                     onChange={handleInputChange}
-                    placeholder="Enter email for login"
+                    placeholder="Enter username (license username)"
                     className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {errors.loginEmail && <p className="text-red-400 text-sm mt-1">{errors.loginEmail}</p>}
@@ -1098,6 +1116,7 @@ System Version: 1.0
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
+            {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
             {step > 1 && (
               <button
                 type="button"

@@ -6,8 +6,7 @@ export default function Navbar({ userRole, onLogout }) {
   const roleInfo = {
     inspector: { title: 'Drug Inspector', color: 'from-blue-600 to-blue-400' },
     wholesaler: { title: 'Wholesaler', color: 'from-green-600 to-green-400' },
-    retailer: { title: 'Retailer', color: 'from-purple-600 to-purple-400' },
-    authority: { title: 'Higher Authority', color: 'from-orange-600 to-orange-400' }
+    retailer: { title: 'Retailer', color: 'from-purple-600 to-purple-400' }
   }
 
   const current = roleInfo[userRole] || roleInfo.inspector
@@ -21,8 +20,7 @@ export default function Navbar({ userRole, onLogout }) {
     const dashboardPath = {
       inspector: '/inspector/dashboard',
       wholesaler: '/wholesaler/dashboard',
-      retailer: '/retailer/dashboard',
-      authority: '/authority/dashboard'
+      retailer: '/retailer/dashboard'
     }
     navigate(dashboardPath[userRole] || '/')
   }

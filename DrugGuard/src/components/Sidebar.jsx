@@ -32,12 +32,6 @@ export default function Sidebar({ userRole }) {
       { label: 'Purchase History', path: '/retailer/purchase-history', icon: '🧾' },
       { label: 'Sales History', path: '/retailer/sales-history', icon: '📈' },
       { label: 'Profile & License', path: '/retailer/profile', icon: '👤' }
-    ],
-    authority: [
-      { label: 'Dashboard', path: '/authority/dashboard', icon: '📊' },
-      { label: 'Wholesaler Sales', path: '/authority/view-wholesaler-sales', icon: '📈' },
-      { label: 'Retailer Purchases', path: '/authority/view-retailer-purchases', icon: '📦' },
-      { label: 'Stock & Reports', path: '/authority/stock-reports', icon: '📋' }
     ]
   }
 

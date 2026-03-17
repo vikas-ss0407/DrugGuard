@@ -24,13 +24,6 @@ export default function Landingpage() {
       description: 'Purchase drugs from wholesalers, manage inventory, and track sales',
       icon: '🏪',
       color: 'from-purple-600 to-purple-400'
-    },
-    {
-      id: 'authority',
-      title: 'Higher Authority',
-      description: 'View reports, analytics, and compliance data in read-only mode',
-      icon: '📊',
-      color: 'from-orange-600 to-orange-400'
     }
   ]
 
@@ -66,7 +59,7 @@ export default function Landingpage() {
         </div>
 
         {/* Role Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {roles.map((role) => (
             <div
               key={role.id}
