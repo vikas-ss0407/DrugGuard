@@ -25,6 +25,10 @@ export async function getWholesalerSalesHistory(wholesalerId) {
   return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/sales-history`)
 }
 
+export async function getWholesalerStock(wholesalerId) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/stock`)
+}
+
 export async function getManufacturerMedicines(manufacturer) {
   const query = manufacturer
     ? `?manufacturer=${encodeURIComponent(manufacturer)}`

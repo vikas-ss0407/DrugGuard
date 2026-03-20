@@ -8,6 +8,37 @@ async function ensureShopExists(collectionName, id) {
   return doc.exists ? { id: doc.id, ...doc.data() } : null
 }
 
+async function resolveWholesalerShop(identifier) {
+  if (!identifier) return null
+
+  const byId = await ensureShopExists(collections.WHOLESALERS, identifier)
+  if (byId) return byId
+
+  const byUsername = await db
+    .collection(collections.WHOLESALERS)
+    .where('username', '==', String(identifier))
+    .limit(1)
+    .get()
+
+  if (!byUsername.empty) {
+    const doc = byUsername.docs[0]
+    return { id: doc.id, ...doc.data() }
+  }
+
+  const byEmail = await db
+    .collection(collections.WHOLESALERS)
+    .where('email', '==', String(identifier))
+    .limit(1)
+    .get()
+
+  if (!byEmail.empty) {
+    const doc = byEmail.docs[0]
+    return { id: doc.id, ...doc.data() }
+  }
+
+  return null
+}
+
 function deriveManufactureDate(expiryDate, fallbackDate) {
   if (expiryDate) {
     const expiry = new Date(expiryDate)
@@ -137,7 +168,7 @@ async function createPurchaseFromManufacturer(req, res) {
       return res.status(400).json({ message: 'wholesalerId, manufacturer and items are required' })
     }
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerId)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found for wholesalerId' })
     }
@@ -192,8 +223,8 @@ async function createPurchaseFromManufacturer(req, res) {
       billNo: `MFR-${Date.now()}`,
       sellerRole: 'manufacturer',
       buyerRole: 'wholesaler',
-      wholesalerId,
-      wholesalerName: wholesalerName || '',
+      wholesalerId: wholesalerShop.id,
+      wholesalerName: wholesalerName || wholesalerShop.shopFirmName || wholesalerShop.username || '',
       manufacturer,
       orderType: 'manufacturer_purchase_order',
       orderStatus: 'pending_approval',
@@ -218,16 +249,16 @@ async function createPurchaseFromManufacturer(req, res) {
 
 async function getWholesalerApproveStockBills(req, res) {
   try {
-    const { wholesalerId } = req.params
+    const wholesalerIdentifier = req.params.wholesalerId
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found' })
     }
 
     const snapshot = await db
       .collection(collections.WHOLESALER_PURCHASES)
-      .where('wholesalerId', '==', wholesalerId)
+      .where('wholesalerId', '==', wholesalerShop.id)
       .get()
 
     const bills = snapshot.docs
@@ -260,7 +291,7 @@ async function getWholesalerApproveStockBills(req, res) {
           : []
       }))
 
-    return res.json({ wholesalerId, bills })
+    return res.json({ wholesalerId: wholesalerShop.id, bills })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -268,14 +299,15 @@ async function getWholesalerApproveStockBills(req, res) {
 
 async function approveWholesalerStock(req, res) {
   try {
-    const { wholesalerId, purchaseId } = req.params
+    const { purchaseId } = req.params
+    const wholesalerIdentifier = req.params.wholesalerId
     const { acceptedMedicineIds } = req.body
 
     if (!Array.isArray(acceptedMedicineIds) || acceptedMedicineIds.length === 0) {
       return res.status(400).json({ message: 'acceptedMedicineIds is required' })
     }
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found' })
     }
@@ -288,7 +320,7 @@ async function approveWholesalerStock(req, res) {
     }
 
     const purchase = doc.data()
-    if (purchase.wholesalerId !== wholesalerId) {
+    if (purchase.wholesalerId !== wholesalerShop.id) {
       return res.status(403).json({ message: 'You are not allowed to update this purchase' })
     }
 
@@ -315,7 +347,7 @@ async function approveWholesalerStock(req, res) {
 
       let existingSnapshot = await db
         .collection(collections.WHOLESALER_STOCK)
-        .where('wholesalerId', '==', wholesalerId)
+        .where('wholesalerId', '==', wholesalerShop.id)
         .where('medicineId', '==', medicineId)
         .where('batch', '==', batch)
         .limit(1)
@@ -324,7 +356,7 @@ async function approveWholesalerStock(req, res) {
       if (existingSnapshot.empty) {
         existingSnapshot = await db
           .collection(collections.WHOLESALER_STOCK)
-          .where('wholesalerId', '==', wholesalerId)
+          .where('wholesalerId', '==', wholesalerShop.id)
           .where('medicineName', '==', medicineName)
           .where('batch', '==', batch)
           .limit(1)
@@ -344,7 +376,7 @@ async function approveWholesalerStock(req, res) {
         })
       } else {
         await db.collection(collections.WHOLESALER_STOCK).add({
-          wholesalerId,
+          wholesalerId: wholesalerShop.id,
           medicineId: medicineId || null,
           medicineName,
           batch,
@@ -384,16 +416,16 @@ async function approveWholesalerStock(req, res) {
 
 async function getWholesalerSellCatalog(req, res) {
   try {
-    const { wholesalerId } = req.params
+    const wholesalerIdentifier = req.params.wholesalerId
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found' })
     }
 
     const stockSnapshot = await db
       .collection(collections.WHOLESALER_STOCK)
-      .where('wholesalerId', '==', wholesalerId)
+      .where('wholesalerId', '==', wholesalerShop.id)
       .get()
 
     const medicines = stockSnapshot.docs
@@ -428,10 +460,48 @@ async function getWholesalerSellCatalog(req, res) {
     }))
 
     return res.json({
-      wholesalershopId: wholesalerId,
+      wholesalershopId: wholesalerShop.id,
       retailers,
       medicines
     })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getWholesalerStock(req, res) {
+  try {
+    const wholesalerIdentifier = req.params.wholesalerId
+
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const stockSnapshot = await db
+      .collection(collections.WHOLESALER_STOCK)
+      .where('wholesalerId', '==', wholesalerShop.id)
+      .get()
+
+    const stock = stockSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => String(a.medicineName || '').localeCompare(String(b.medicineName || '')))
+      .map((item) => ({
+        id: item.id,
+        medicineName: item.medicineName || '-',
+        medicineId: item.medicineId || '',
+        batch: item.batch || '-',
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        mrp: Number(item.mrp || 0),
+        expiryDate: item.expiryDate || null,
+        packType: item.packType || 'Unit',
+        packSize: item.packSize || '1 unit',
+        updatedAt: item.updatedAt || item.createdAt || null,
+        createdAt: item.createdAt || null
+      }))
+
+    return res.json({ wholesalerId: wholesalerShop.id, stock })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -455,7 +525,7 @@ async function createSaleToRetailer(req, res) {
       return res.status(400).json({ message: 'wholesalerId and retailerId are required' })
     }
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerId)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found for wholesalerId' })
     }
@@ -489,7 +559,7 @@ async function createSaleToRetailer(req, res) {
         }
 
         const stockData = stockDoc.data()
-        if (String(stockData.wholesalerId) !== String(wholesalerId)) {
+        if (String(stockData.wholesalerId) !== String(wholesalerShop.id)) {
           return res.status(403).json({ message: 'Stock item does not belong to this wholesaler' })
         }
 
@@ -549,7 +619,7 @@ async function createSaleToRetailer(req, res) {
     const tx = {
       billNo,
       sellerRole: 'wholesaler',
-      sellerId: wholesalerId,
+      sellerId: wholesalerShop.id,
       sellerName: wholesalerShop.shopFirmName || wholesalerShop.username || wholesalerId,
       buyerRole: 'retailer',
       buyerId: retailerId,
@@ -580,9 +650,9 @@ async function createSaleToRetailer(req, res) {
 
 async function getWholesalerSalesHistory(req, res) {
   try {
-    const { wholesalerId } = req.params
+    const wholesalerIdentifier = req.params.wholesalerId
 
-    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
     if (!wholesalerShop) {
       return res.status(404).json({ message: 'Wholesaler shop not found' })
     }
@@ -590,7 +660,7 @@ async function getWholesalerSalesHistory(req, res) {
     const snapshot = await db
       .collection(collections.TRANSACTIONS)
       .where('sellerRole', '==', 'wholesaler')
-      .where('sellerId', '==', wholesalerId)
+      .where('sellerId', '==', wholesalerShop.id)
       .get()
 
     const sales = snapshot.docs
@@ -612,7 +682,7 @@ async function getWholesalerSalesHistory(req, res) {
         specialNotes: tx.specialNotes || ''
       }))
 
-    return res.json({ wholesalerId, sales })
+    return res.json({ wholesalerId: wholesalerShop.id, sales })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -622,6 +692,7 @@ module.exports = {
   ensureManufacturerCatalogSeeded,
   createSaleToRetailer,
   getWholesalerSalesHistory,
+  getWholesalerStock,
   getManufacturerMedicines,
   createPurchaseFromManufacturer,
   getWholesalerSellCatalog,
