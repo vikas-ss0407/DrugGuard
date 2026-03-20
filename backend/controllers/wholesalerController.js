@@ -382,12 +382,77 @@ async function approveWholesalerStock(req, res) {
   }
 }
 
+async function getWholesalerSellCatalog(req, res) {
+  try {
+    const { wholesalerId } = req.params
+
+    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const stockSnapshot = await db
+      .collection(collections.WHOLESALER_STOCK)
+      .where('wholesalerId', '==', wholesalerId)
+      .get()
+
+    const medicines = stockSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((item) => Number(item.quantity || 0) > 0)
+      .map((item) => ({
+        id: item.id,
+        medicineId: item.medicineId || item.id,
+        name: item.medicineName || '-',
+        batch: item.batch || '-',
+        company: item.manufacturerName || item.companyName || '',
+        expiryDate: item.expiryDate || null,
+        rate: Number(item.rate || 0),
+        mrp: Number(item.mrp || 0),
+        category: item.packType || 'Unit',
+        categoryUnit: item.packSize || '1 unit',
+        stock: Number(item.quantity || 0),
+        offer: item.offer || ''
+      }))
+
+    let retailerQuery = db.collection(collections.RETAILERS)
+    if (wholesalerShop.inspectorDistrict) {
+      retailerQuery = retailerQuery.where('inspectorDistrict', '==', wholesalerShop.inspectorDistrict)
+    }
+
+    const retailerSnapshot = await retailerQuery.get()
+    const retailers = retailerSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().shopFirmName || doc.data().username || doc.id,
+      district: doc.data().district || '',
+      inspectorDistrict: doc.data().inspectorDistrict || ''
+    }))
+
+    return res.json({
+      wholesalershopId: wholesalerId,
+      retailers,
+      medicines
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
 async function createSaleToRetailer(req, res) {
   try {
-    const { wholesalerId, retailerId, productName, quantity, district } = req.body
+    const {
+      wholesalerId,
+      retailerId,
+      productName,
+      quantity,
+      district,
+      items,
+      deliveryDate,
+      paymentTerms,
+      specialNotes
+    } = req.body
 
-    if (!wholesalerId || !retailerId || !productName || !quantity) {
-      return res.status(400).json({ message: 'wholesalerId, retailerId, productName and quantity are required' })
+    if (!wholesalerId || !retailerId) {
+      return res.status(400).json({ message: 'wholesalerId and retailerId are required' })
     }
 
     const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
@@ -400,19 +465,114 @@ async function createSaleToRetailer(req, res) {
       return res.status(404).json({ message: 'Retailer shop not found for retailerId' })
     }
 
+    const nowIso = new Date().toISOString()
+    const usingItems = Array.isArray(items) && items.length > 0
+
+    let soldItems = []
+    let totalAmount = 0
+    let totalQuantity = 0
+
+    if (usingItems) {
+      for (const item of items) {
+        const stockId = String(item.stockId || item.drugId || item.medicineId || '')
+        const saleQty = Number(item.quantity)
+
+        if (!stockId || !Number.isFinite(saleQty) || saleQty <= 0) {
+          return res.status(400).json({ message: 'Each item must include valid stockId and quantity' })
+        }
+
+        const stockRef = db.collection(collections.WHOLESALER_STOCK).doc(stockId)
+        const stockDoc = await stockRef.get()
+
+        if (!stockDoc.exists) {
+          return res.status(404).json({ message: `Stock item not found for id: ${stockId}` })
+        }
+
+        const stockData = stockDoc.data()
+        if (String(stockData.wholesalerId) !== String(wholesalerId)) {
+          return res.status(403).json({ message: 'Stock item does not belong to this wholesaler' })
+        }
+
+        const availableQty = Number(stockData.quantity || 0)
+        if (saleQty > availableQty) {
+          return res.status(400).json({
+            message: `Insufficient stock for ${stockData.medicineName || stockId}. Available: ${availableQty}`
+          })
+        }
+
+        const rate = Number(stockData.rate || 0)
+        const lineAmount = Number((rate * saleQty).toFixed(2))
+
+        soldItems.push({
+          stockId,
+          medicineId: stockData.medicineId || stockId,
+          medicineName: stockData.medicineName || '-',
+          batch: stockData.batch || '-',
+          quantity: saleQty,
+          rate,
+          mrp: Number(stockData.mrp || 0),
+          expiryDate: stockData.expiryDate || null,
+          amount: lineAmount
+        })
+
+        totalAmount += lineAmount
+        totalQuantity += saleQty
+
+        await stockRef.update({
+          quantity: availableQty - saleQty,
+          updatedAt: nowIso
+        })
+      }
+    } else {
+      if (!productName || !quantity) {
+        return res.status(400).json({ message: 'Either items[] or productName and quantity are required' })
+      }
+
+      totalQuantity = Number(quantity) || 0
+      soldItems = [
+        {
+          stockId: null,
+          medicineId: null,
+          medicineName: productName,
+          batch: '-',
+          quantity: totalQuantity,
+          rate: 0,
+          mrp: 0,
+          expiryDate: null,
+          amount: 0
+        }
+      ]
+    }
+
+    const billNo = `WS-${Date.now()}`
+
     const tx = {
+      billNo,
       sellerRole: 'wholesaler',
       sellerId: wholesalerId,
+      sellerName: wholesalerShop.shopFirmName || wholesalerShop.username || wholesalerId,
       buyerRole: 'retailer',
       buyerId: retailerId,
-      productName,
-      quantity,
+      buyerName: retailerShop.shopFirmName || retailerShop.username || retailerId,
+      productName: soldItems.length === 1 ? soldItems[0].medicineName : 'Multiple Medicines',
+      quantity: totalQuantity,
+      items: soldItems,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      paymentTerms: paymentTerms || '',
+      deliveryDate: deliveryDate || null,
+      specialNotes: specialNotes || '',
       district: district || null,
-      createdAt: new Date().toISOString()
+      createdAt: nowIso,
+      updatedAt: nowIso
     }
 
     const ref = await db.collection(collections.TRANSACTIONS).add(tx)
-    return res.status(201).json({ message: 'Sale recorded', transactionId: ref.id })
+    return res.status(201).json({
+      message: 'Sale recorded',
+      transactionId: ref.id,
+      billNo,
+      totalAmount: Number(totalAmount.toFixed(2))
+    })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -423,6 +583,7 @@ module.exports = {
   createSaleToRetailer,
   getManufacturerMedicines,
   createPurchaseFromManufacturer,
+  getWholesalerSellCatalog,
   getWholesalerApproveStockBills,
   approveWholesalerStock
 }

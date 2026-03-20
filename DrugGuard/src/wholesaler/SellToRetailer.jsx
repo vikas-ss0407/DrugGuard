@@ -1,7 +1,15 @@
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  createWholesalerSale,
+  getWholesalerSellCatalog
+} from '../api/wholesaler/wholesalerApi'
 
 export default function SellToRetailer() {
-  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [retailers, setRetailers] = useState([])
+  const [availableDrugs, setAvailableDrugs] = useState([])
+
   const [formData, setFormData] = useState({
     retailer: '',
     drugs: [],
@@ -19,23 +27,51 @@ export default function SellToRetailer() {
   const searchInputRef = useRef(null)
   const quantityInputRef = useRef(null)
 
-  const retailers = ['City Pharmacy', 'Main Street Clinic', 'Central Pharmacy', 'Green Valley Hospital', 'Elite Retailers']
-  const availableDrugs = [
-    { id: 1, name: 'Paracetamol 500mg', batch: 'BAT001', company: 'Cipla Ltd', expiryDate: '2026-06-15', rate: 20, mrp: 25, category: 'Strip', categoryUnit: '10\'s', stock: 5000, offer: '10+2' },
-    { id: 2, name: 'Aspirin 75mg', batch: 'BAT002', company: 'GSK India', expiryDate: '2026-08-20', rate: 12, mrp: 15, category: 'Strip', categoryUnit: '15\'s', stock: 3000 },
-    { id: 3, name: 'Ibuprofen 400mg', batch: 'BAT003', company: 'Abbott', expiryDate: '2026-07-10', rate: 25, mrp: 30, category: 'Strip', categoryUnit: '10\'s', stock: 2500, offer: '8+1' },
-    { id: 4, name: 'Amoxicillin 250mg', batch: 'BAT004', company: 'Lupin Ltd', expiryDate: '2026-09-30', rate: 35, mrp: 42.5, category: 'Bottle', categoryUnit: '100ml', stock: 1500, offer: '5+1' },
-    { id: 5, name: 'Cough Syrup', batch: 'BAT005', company: 'Dr Reddy\'s', expiryDate: '2026-05-15', rate: 45, mrp: 55, category: 'Bottle', categoryUnit: '100ml', stock: 800 },
-    { id: 6, name: 'Vitamin B12', batch: 'BAT006', company: 'Merck', expiryDate: '2026-10-20', rate: 18, mrp: 22, category: 'Strip', categoryUnit: '10\'s', stock: 2000 }
-  ]
+  useEffect(() => {
+    let active = true
+
+    async function loadCatalog() {
+      try {
+        setLoading(true)
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const wholesalerId = user?.id || user?.uid
+
+        if (!wholesalerId) {
+          throw new Error('Wholesaler session not found. Please login again.')
+        }
+
+        const response = await getWholesalerSellCatalog(wholesalerId)
+        if (!active) return
+
+        setRetailers(Array.isArray(response.retailers) ? response.retailers : [])
+        setAvailableDrugs(Array.isArray(response.medicines) ? response.medicines : [])
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load sell catalog')
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadCatalog()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value
     }))
   }
+
+  const selectedDrugInfo = availableDrugs.find((d) => d.id === currentMedicine.drugId)
 
   const addMedicineToOrder = () => {
     if (!currentMedicine.drugId || !currentMedicine.quantity) {
@@ -43,19 +79,37 @@ export default function SellToRetailer() {
       return
     }
 
-    // Add to order summary
-    setFormData(prev => ({
+    const selectedDrug = availableDrugs.find((d) => d.id === currentMedicine.drugId)
+    if (!selectedDrug) {
+      alert('Selected medicine is not available in stock')
+      return
+    }
+
+    const qty = Number(currentMedicine.quantity)
+    if (!Number.isFinite(qty) || qty <= 0) {
+      alert('Quantity must be greater than 0')
+      return
+    }
+
+    const alreadyAddedQty = formData.drugs
+      .filter((d) => d.drugId === currentMedicine.drugId)
+      .reduce((sum, d) => sum + Number(d.quantity || 0), 0)
+
+    if (alreadyAddedQty + qty > Number(selectedDrug.stock || 0)) {
+      alert(`Insufficient stock. Available: ${selectedDrug.stock}, Already added: ${alreadyAddedQty}`)
+      return
+    }
+
+    setFormData((prev) => ({
       ...prev,
-      drugs: [...prev.drugs, { ...currentMedicine }]
+      drugs: [...prev.drugs, { ...currentMedicine, quantity: String(qty) }]
     }))
 
-    // Clear current selection for next medicine
     setCurrentMedicine({ drugId: '', quantity: '' })
     setMedicineSearch('')
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    
-    // Focus back on search input
+
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus()
@@ -64,11 +118,11 @@ export default function SellToRetailer() {
   }
 
   const selectMedicine = (drug) => {
-    setCurrentMedicine(prev => ({ ...prev, drugId: drug.id.toString() }))
+    setCurrentMedicine((prev) => ({ ...prev, drugId: drug.id }))
     setMedicineSearch(drug.name)
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    // Focus on quantity input after selection
+
     setTimeout(() => {
       if (quantityInputRef.current) {
         quantityInputRef.current.focus()
@@ -76,23 +130,24 @@ export default function SellToRetailer() {
     }, 100)
   }
 
-  const handleSearchKeyDown = (e) => {
-    const filteredDrugs = availableDrugs.filter(d => 
-      d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-    )
+  const filteredDrugs = availableDrugs.filter((d) =>
+    d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+  )
 
+  const handleSearchKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setHighlightedIndex(prev => 
-        prev < filteredDrugs.length - 1 ? prev + 1 : prev
-      )
-    } else if (e.key === 'ArrowUp') {
+      setHighlightedIndex((prev) => (prev < filteredDrugs.length - 1 ? prev + 1 : prev))
+      return
+    }
+
+    if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0)
-    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
-      e.preventDefault()
-      selectMedicine(filteredDrugs[highlightedIndex])
-    } else if (e.key === 'Tab' && highlightedIndex >= 0) {
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0))
+      return
+    }
+
+    if ((e.key === 'Enter' || e.key === 'Tab') && highlightedIndex >= 0) {
       e.preventDefault()
       selectMedicine(filteredDrugs[highlightedIndex])
     }
@@ -106,43 +161,91 @@ export default function SellToRetailer() {
   }
 
   const removeDrug = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       drugs: prev.drugs.filter((_, i) => i !== index)
     }))
   }
 
   const calculateTotal = () => {
-    return formData.drugs.reduce((total, drug) => {
-      const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
-      return total + (drugInfo ? drugInfo.rate * (drug.quantity || 0) : 0)
-    }, 0).toFixed(2)
+    return formData.drugs
+      .reduce((total, drug) => {
+        const drugInfo = availableDrugs.find((d) => d.id === drug.drugId)
+        return total + (drugInfo ? Number(drugInfo.rate) * Number(drug.quantity || 0) : 0)
+      }, 0)
+      .toFixed(2)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.retailer || formData.drugs.length === 0) {
       alert('Please select retailer and add drugs')
       return
     }
-    alert(`Bill generated successfully!\nTotal: ₹${calculateTotal()}`)
-    setFormData({ retailer: '', drugs: [], deliveryDate: '', paymentTerms: '', specialNotes: '' })
-    setStep(1)
+
+    try {
+      setSubmitting(true)
+      const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const wholesalerId = user?.id || user?.uid
+
+      if (!wholesalerId) {
+        throw new Error('Wholesaler session not found. Please login again.')
+      }
+
+      const selectedRetailer = retailers.find((r) => r.id === formData.retailer)
+      if (!selectedRetailer) {
+        throw new Error('Selected retailer not found')
+      }
+
+      const payloadItems = formData.drugs
+        .map((line) => {
+          const drugInfo = availableDrugs.find((d) => d.id === line.drugId)
+          if (!drugInfo) return null
+          return {
+            stockId: drugInfo.id,
+            quantity: Number(line.quantity)
+          }
+        })
+        .filter(Boolean)
+
+      const response = await createWholesalerSale({
+        wholesalerId,
+        retailerId: selectedRetailer.id,
+        deliveryDate: formData.deliveryDate || null,
+        paymentTerms: formData.paymentTerms || '',
+        specialNotes: formData.specialNotes || '',
+        district: user?.district || null,
+        items: payloadItems
+      })
+
+      alert(`Bill generated successfully!\nBill No: ${response.billNo || '-'}\nTotal: ₹${Number(response.totalAmount || 0).toFixed(2)}`)
+
+      setFormData({ retailer: '', drugs: [], deliveryDate: '', paymentTerms: '', specialNotes: '' })
+      setCurrentMedicine({ drugId: '', quantity: '' })
+      setMedicineSearch('')
+      setOpenDropdown(false)
+      setHighlightedIndex(-1)
+
+      const refresh = await getWholesalerSellCatalog(wholesalerId)
+      setRetailers(Array.isArray(refresh.retailers) ? refresh.retailers : [])
+      setAvailableDrugs(Array.isArray(refresh.medicines) ? refresh.medicines : [])
+    } catch (error) {
+      alert(error.message || 'Failed to generate bill')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
       <div className="w-full">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Sell to Retailer</h1>
           <p className="text-slate-400">Create a new bill and manage sales to retailers</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="bg-slate-800 rounded-lg p-8 border border-slate-700">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Retailer Selection */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Select Retailer *</label>
               <select
@@ -150,15 +253,15 @@ export default function SellToRetailer() {
                 value={formData.retailer}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={loading}
               >
                 <option value="">Choose a retailer</option>
                 {retailers.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
             </div>
 
-            {/* Delivery Date */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Delivery Date *</label>
               <input
@@ -170,7 +273,6 @@ export default function SellToRetailer() {
               />
             </div>
 
-            {/* Payment Terms */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Payment Terms</label>
               <select
@@ -186,7 +288,6 @@ export default function SellToRetailer() {
               </select>
             </div>
 
-            {/* Special Notes */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Special Notes</label>
               <input
@@ -200,16 +301,12 @@ export default function SellToRetailer() {
             </div>
           </div>
 
-          {/* Drugs Section */}
           <div className="mb-8">
             <div className="mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-white">📋 Add Medicines</h3>
-                <p className="text-slate-400 text-sm mt-1">Search and select medicines for the order</p>
-              </div>
+              <h3 className="text-xl font-bold text-white">📋 Add Medicines</h3>
+              <p className="text-slate-400 text-sm mt-1">Search and select medicines for the order</p>
             </div>
 
-            {/* Single Search Row */}
             <div className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-600">
               <div className="flex gap-4 items-end">
                 <div className="flex-1 relative">
@@ -227,18 +324,15 @@ export default function SellToRetailer() {
                       onKeyDown={handleSearchKeyDown}
                       onFocus={() => setOpenDropdown(true)}
                       onBlur={() => setTimeout(() => setOpenDropdown(false), 300)}
-                      placeholder="Type medicine name..."
+                      placeholder={loading ? 'Loading stock...' : 'Type medicine name...'}
                       className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      disabled={loading}
                     />
                     {openDropdown && (
                       <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-[9999] w-full max-w-[900px] max-h-72 overflow-y-auto">
-                        {availableDrugs.filter(d => 
-                          d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                        ).length > 0 ? (
+                        {filteredDrugs.length > 0 ? (
                           <div className="divide-y divide-slate-700">
-                            {availableDrugs.filter(d => 
-                              d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                            ).map((d, index) => (
+                            {filteredDrugs.map((d, index) => (
                               <div
                                 key={d.id}
                                 onMouseDown={(e) => {
@@ -247,8 +341,8 @@ export default function SellToRetailer() {
                                 }}
                                 onMouseEnter={() => setHighlightedIndex(index)}
                                 className={`px-5 py-4 cursor-pointer transition-colors ${
-                                  highlightedIndex === index 
-                                    ? 'bg-blue-600/30 border-l-4 border-blue-500' 
+                                  highlightedIndex === index
+                                    ? 'bg-blue-600/30 border-l-4 border-blue-500'
                                     : 'hover:bg-slate-800'
                                 }`}
                               >
@@ -256,7 +350,7 @@ export default function SellToRetailer() {
                                 <div className="grid grid-cols-7 gap-3 text-xs">
                                   <div>
                                     <div className="text-slate-500 mb-1">Company</div>
-                                    <div className="text-slate-300 font-semibold">{d.company}</div>
+                                    <div className="text-slate-300 font-semibold">{d.company || '-'}</div>
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">Batch</div>
@@ -264,7 +358,7 @@ export default function SellToRetailer() {
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">Expiry</div>
-                                    <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
+                                    <div className="text-slate-300">{d.expiryDate ? new Date(d.expiryDate).toLocaleDateString() : '-'}</div>
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">Rate</div>
@@ -277,7 +371,7 @@ export default function SellToRetailer() {
                                   <div>
                                     <div className="text-slate-500 mb-1">Offer</div>
                                     <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
-                                      {d.offer ? d.offer : '-'}
+                                      {d.offer || '-'}
                                     </div>
                                   </div>
                                   <div>
@@ -307,10 +401,11 @@ export default function SellToRetailer() {
                     type="number"
                     min="1"
                     value={currentMedicine.quantity}
-                    onChange={(e) => setCurrentMedicine(prev => ({ ...prev, quantity: e.target.value }))}
+                    onChange={(e) => setCurrentMedicine((prev) => ({ ...prev, quantity: e.target.value }))}
                     onKeyPress={handleQuantityKeyPress}
                     className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                     placeholder="Qty"
+                    max={selectedDrugInfo?.stock || undefined}
                   />
                 </div>
                 <button
@@ -324,7 +419,6 @@ export default function SellToRetailer() {
             </div>
           </div>
 
-          {/* Bill Preview */}
           {formData.drugs.length > 0 && (
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg p-8 mb-8 border-2 border-slate-600 shadow-2xl overflow-hidden">
               <div className="mb-8">
@@ -332,7 +426,6 @@ export default function SellToRetailer() {
                 <p className="text-slate-400 text-sm">Complete medicine details for your order</p>
               </div>
 
-              {/* Order Summary Table */}
               <div className="bg-slate-800 rounded-lg border border-slate-600 overflow-visible shadow-lg">
                 <div className="overflow-visible">
                   <table className="w-full">
@@ -354,29 +447,26 @@ export default function SellToRetailer() {
                     </thead>
                     <tbody>
                       {formData.drugs.map((drug, idx) => {
-                        const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+                        const drugInfo = availableDrugs.find((d) => d.id === drug.drugId)
                         if (!drugInfo) return null
-                        const amount = drugInfo.rate * (drug.quantity || 0)
-                        
-                        // Calculate offer display
+                        const amount = Number(drugInfo.rate) * Number(drug.quantity || 0)
+
                         let qtyDisplay = drug.quantity || 0
                         if (drugInfo.offer && drug.quantity) {
-                          const offerParts = drugInfo.offer.split('+')
-                          const buyQty = parseInt(offerParts[0])
-                          const freeQty = parseInt(offerParts[1])
-                          
-                          if (parseInt(drug.quantity) >= buyQty) {
-                            const sets = Math.floor(parseInt(drug.quantity) / buyQty)
-                            const remaining = parseInt(drug.quantity) % buyQty
-                            
+                          const offerParts = String(drugInfo.offer).split('+')
+                          const buyQty = parseInt(offerParts[0], 10)
+                          const freeQty = parseInt(offerParts[1], 10)
+
+                          if (Number(drug.quantity) >= buyQty) {
+                            const sets = Math.floor(Number(drug.quantity) / buyQty)
+                            const remaining = Number(drug.quantity) % buyQty
+
                             if (remaining === 0) {
                               qtyDisplay = `${drug.quantity}+${sets * freeQty}`
-                            } else {
-                              qtyDisplay = drug.quantity
                             }
                           }
                         }
-                        
+
                         return (
                           <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                             <td className="px-4 py-4 text-center">
@@ -384,38 +474,18 @@ export default function SellToRetailer() {
                                 {idx + 1}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-white text-sm font-medium">
-                              {drugInfo.name}
-                            </td>
-                            <td className="px-4 py-4 text-white text-sm font-medium">
-                              {drugInfo.company}
-                            </td>
-                            <td className="px-4 py-4 text-slate-300 text-sm font-mono">
-                              {drugInfo.batch}
-                            </td>
-                            <td className="px-4 py-4 text-slate-300 text-sm">
-                              {new Date(drugInfo.expiryDate).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-4 text-slate-300 text-sm">
-                              {drugInfo.category} ({drugInfo.categoryUnit})
-                            </td>
-                            <td className="px-4 py-4 text-center text-slate-300 font-semibold">
-                              {qtyDisplay}
-                            </td>
-                            <td className="px-4 py-4 text-center text-green-400 font-bold text-sm">
-                              ₹{drugInfo.rate}
-                            </td>
-                            <td className="px-4 py-4 text-center text-blue-400 font-bold text-sm">
-                              ₹{drugInfo.mrp}
-                            </td>
+                            <td className="px-4 py-4 text-white text-sm font-medium">{drugInfo.name}</td>
+                            <td className="px-4 py-4 text-white text-sm font-medium">{drugInfo.company || '-'}</td>
+                            <td className="px-4 py-4 text-slate-300 text-sm font-mono">{drugInfo.batch}</td>
+                            <td className="px-4 py-4 text-slate-300 text-sm">{drugInfo.expiryDate ? new Date(drugInfo.expiryDate).toLocaleDateString() : '-'}</td>
+                            <td className="px-4 py-4 text-slate-300 text-sm">{drugInfo.category} ({drugInfo.categoryUnit})</td>
+                            <td className="px-4 py-4 text-center text-slate-300 font-semibold">{qtyDisplay}</td>
+                            <td className="px-4 py-4 text-center text-green-400 font-bold text-sm">₹{drugInfo.rate}</td>
+                            <td className="px-4 py-4 text-center text-blue-400 font-bold text-sm">₹{drugInfo.mrp}</td>
                             <td className="px-4 py-4 text-center font-bold text-sm">
-                              <span className={drugInfo.offer ? 'text-yellow-400' : 'text-slate-500'}>
-                                {drugInfo.offer || '-'}
-                              </span>
+                              <span className={drugInfo.offer ? 'text-yellow-400' : 'text-slate-500'}>{drugInfo.offer || '-'}</span>
                             </td>
-                            <td className="px-4 py-4 text-center text-white font-bold text-sm">
-                              ₹{amount.toFixed(2)}
-                            </td>
+                            <td className="px-4 py-4 text-center text-white font-bold text-sm">₹{amount.toFixed(2)}</td>
                             <td className="px-4 py-4 text-center">
                               <button
                                 type="button"
@@ -433,11 +503,10 @@ export default function SellToRetailer() {
                 </div>
               </div>
 
-              {/* Total Section */}
               <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border-2 border-green-600/40 rounded-lg p-6 flex flex-col md:flex-row justify-between items-center">
                 <div>
                   <p className="text-slate-300 mb-2">Total Items: <span className="text-white font-bold">{formData.drugs.length}</span></p>
-                  <p className="text-slate-300">Total Quantity: <span className="text-white font-bold">{formData.drugs.reduce((sum, d) => sum + parseInt(d.quantity || 0), 0)}</span></p>
+                  <p className="text-slate-300">Total Quantity: <span className="text-white font-bold">{formData.drugs.reduce((sum, d) => sum + Number(d.quantity || 0), 0)}</span></p>
                 </div>
                 <div className="text-right mt-4 md:mt-0">
                   <p className="text-slate-400 text-sm mb-1">Grand Total Amount</p>
@@ -447,19 +516,26 @@ export default function SellToRetailer() {
             </div>
           )}
 
-          {/* Buttons */}
           <div className="flex justify-end gap-4">
             <button
-              type="reset"
+              type="button"
+              onClick={() => {
+                setFormData({ retailer: '', drugs: [], deliveryDate: '', paymentTerms: '', specialNotes: '' })
+                setCurrentMedicine({ drugId: '', quantity: '' })
+                setMedicineSearch('')
+                setOpenDropdown(false)
+                setHighlightedIndex(-1)
+              }}
               className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-semibold"
             >
               Clear
             </button>
             <button
               type="submit"
-              className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              disabled={submitting || loading}
+              className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-60"
             >
-              Generate Bill
+              {submitting ? 'Generating...' : 'Generate Bill'}
             </button>
           </div>
         </form>

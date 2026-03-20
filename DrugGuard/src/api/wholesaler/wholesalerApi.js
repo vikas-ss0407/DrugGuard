@@ -17,6 +17,10 @@ export async function createWholesalerSale(payload) {
   })
 }
 
+export async function getWholesalerSellCatalog(wholesalerId) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/sell-catalog`)
+}
+
 export async function getManufacturerMedicines(manufacturer) {
   const query = manufacturer
     ? `?manufacturer=${encodeURIComponent(manufacturer)}`
