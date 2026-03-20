@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
+import { createRetailerOrder } from '../api/retailer/retailerApi'
 
 export default function PurchaseFromWholesaler() {
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     wholesaler: '',
     drugs: []
@@ -113,14 +115,64 @@ export default function PurchaseFromWholesaler() {
     }, 0).toFixed(2)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.wholesaler || formData.drugs.length === 0) {
       alert('Please select wholesaler and add drugs')
       return
     }
-    alert(`Purchase order placed successfully!\nTotal: ₹${calculateTotal()}`)
-    setFormData({ wholesaler: '', drugs: [] })
+
+    try {
+      setSubmitting(true)
+      const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+
+      const retailerShopId = user?.id || user?.uid
+
+      if (!retailerShopId) {
+        throw new Error('Retailer session not found. Please login again.')
+      }
+
+      const items = formData.drugs
+        .map((drug) => {
+          const drugInfo = availableDrugs.find((d) => d.id === parseInt(drug.drugId))
+          if (!drugInfo) return null
+
+          const qty = Number(drug.quantity || 0)
+          return {
+            id: String(drugInfo.id),
+            medicineName: drugInfo.name,
+            batch: drugInfo.batch,
+            quantity: qty,
+            rate: Number(drugInfo.price),
+            mrp: Number(drugInfo.mrp),
+            expiryDate: drugInfo.expiryDate
+          }
+        })
+        .filter(Boolean)
+
+      if (items.length === 0) {
+        throw new Error('No valid medicines found to place the order')
+      }
+
+      const response = await createRetailerOrder({
+        retailerId: retailerShopId,
+        retailerName: user.name || user.username || '',
+        wholesalerName: formData.wholesaler,
+        district: user.district || null,
+        items
+      })
+
+      alert(`Order placed successfully!\nBill No: ${response.billNo}\nTotal: ₹${response.totalAmount}`)
+      setFormData({ wholesaler: '', drugs: [] })
+      setCurrentMedicine({ drugId: '', quantity: '' })
+      setMedicineSearch('')
+      setOpenDropdown(false)
+      setHighlightedIndex(-1)
+    } catch (error) {
+      alert(error.message || 'Failed to place order')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -394,9 +446,10 @@ export default function PurchaseFromWholesaler() {
             </button>
             <button
               type="submit"
+              disabled={submitting}
               className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
             >
-              Place Order
+              {submitting ? 'Placing Order...' : 'Place Order'}
             </button>
           </div>
         </form>

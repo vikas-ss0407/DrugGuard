@@ -1,58 +1,63 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  approveRetailerStock,
+  getRetailerApproveStockBills
+} from '../api/retailer/retailerApi'
 
 export default function ApproveStock() {
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [bills, setBills] = useState([])
   const [selectedBill, setSelectedBill] = useState(null)
   const [selectedMedicines, setSelectedMedicines] = useState({})
 
-  const pendingBills = [
-    { 
-      id: 1, 
-      billNo: 'WHL-001-2024', 
-      wholesaler: 'MediCorp Wholesale', 
-      totalAmount: 20500, 
-      deliveredDate: '2024-02-03', 
-      paymentType: 'Net 30',
-      paymentStatus: 'Pending',
-      medicines: [
-        { id: 1, name: 'Paracetamol 500mg', quantity: 100, batch: 'BAT001', price: 20, mrp: 25, expiry: '2026-06-15' },
-        { id: 2, name: 'Aspirin 75mg', quantity: 50, batch: 'BAT002', price: 12, mrp: 15, expiry: '2026-08-20' },
-        { id: 3, name: 'Ibuprofen 400mg', quantity: 80, batch: 'BAT003', price: 25, mrp: 30, expiry: '2026-07-10' }
-      ]
-    },
-    { 
-      id: 2, 
-      billNo: 'WHL-002-2024', 
-      wholesaler: 'HealthCare Distributors', 
-      totalAmount: 15750, 
-      deliveredDate: '2024-02-02', 
-      paymentType: 'Immediate',
-      paymentStatus: 'Paid',
-      medicines: [
-        { id: 4, name: 'Amoxicillin 250mg', quantity: 60, batch: 'BAT004', price: 35, mrp: 42.5, expiry: '2026-09-30' },
-        { id: 5, name: 'Cough Syrup', quantity: 40, batch: 'BAT005', price: 45, mrp: 55, expiry: '2026-05-15' }
-      ]
-    },
-    { 
-      id: 3, 
-      billNo: 'WHL-003-2024', 
-      wholesaler: 'Prime Pharmaceuticals', 
-      totalAmount: 18900, 
-      deliveredDate: '2024-02-01', 
-      paymentType: 'Net 60',
-      paymentStatus: 'Pending',
-      medicines: [
-        { id: 6, name: 'Vitamin B12', quantity: 120, batch: 'BAT006', price: 18, mrp: 22, expiry: '2026-10-20' },
-        { id: 7, name: 'Paracetamol 500mg', quantity: 90, batch: 'BAT007', price: 20, mrp: 25, expiry: '2026-06-15' }
-      ]
+  const retailerId = useMemo(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      return user?.id || user?.uid || ''
+    } catch (_err) {
+      return ''
     }
-  ]
+  }, [])
+
+  const loadBills = async () => {
+    if (!retailerId) {
+      setError('Retailer session not found. Please login again.')
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      const response = await getRetailerApproveStockBills(retailerId)
+      const nextBills = Array.isArray(response.bills) ? response.bills : []
+      setBills(nextBills)
+
+      if (selectedBill) {
+        const refreshed = nextBills.find((bill) => bill.id === selectedBill.id)
+        setSelectedBill(refreshed || null)
+        if (!refreshed) {
+          setSelectedMedicines({})
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load bills')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadBills()
+  }, [])
 
   const handleBillClick = (bill) => {
     setSelectedBill(bill)
-    // Initialize all medicines as selected by default
     const allSelected = {}
-    bill.medicines.forEach(med => {
+    bill.medicines.forEach((med) => {
       allSelected[med.id] = true
     })
     setSelectedMedicines(allSelected)
@@ -61,7 +66,7 @@ export default function ApproveStock() {
   const handleSelectAll = () => {
     if (!selectedBill) return
     const allSelected = {}
-    selectedBill.medicines.forEach(med => {
+    selectedBill.medicines.forEach((med) => {
       allSelected[med.id] = true
     })
     setSelectedMedicines(allSelected)
@@ -72,26 +77,43 @@ export default function ApproveStock() {
   }
 
   const handleMedicineToggle = (medicineId) => {
-    setSelectedMedicines(prev => ({
+    setSelectedMedicines((prev) => ({
       ...prev,
       [medicineId]: !prev[medicineId]
     }))
   }
 
-  const handleAccept = () => {
-    const acceptedMeds = selectedBill.medicines.filter(med => selectedMedicines[med.id])
-    const pendingMeds = selectedBill.medicines.filter(med => !selectedMedicines[med.id])
-    
+  const handleAccept = async () => {
+    if (!selectedBill) return
+
+    const acceptedMeds = selectedBill.medicines.filter((med) => selectedMedicines[med.id])
+
     if (acceptedMeds.length === 0) {
       alert('Please select at least one medicine to accept')
       return
     }
 
-    alert(`Accepted ${acceptedMeds.length} medicine(s)\n${pendingMeds.length > 0 ? `${pendingMeds.length} medicine(s) marked as pending` : 'All medicines accepted'}`)
-    
-    // Reset
-    setSelectedBill(null)
-    setSelectedMedicines({})
+    try {
+      setSubmitting(true)
+      const response = await approveRetailerStock(
+        retailerId,
+        selectedBill.id,
+        acceptedMeds.map((med) => String(med.id))
+      )
+
+      alert(
+        `Accepted ${response.acceptedCount} medicine(s)\n` +
+          `${response.pendingCount > 0 ? `${response.pendingCount} medicine(s) marked as pending` : 'All medicines accepted'}`
+      )
+
+      setSelectedBill(null)
+      setSelectedMedicines({})
+      await loadBills()
+    } catch (err) {
+      alert(err.message || 'Failed to approve stock')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleBackToBills = () => {
@@ -115,7 +137,15 @@ export default function ApproveStock() {
           </Link>
         </div>
 
-        {!selectedBill ? (
+        {loading ? (
+          <div className="bg-slate-800 rounded-lg p-12 border border-slate-700 text-center text-slate-300">
+            Loading pending stock bills...
+          </div>
+        ) : error ? (
+          <div className="bg-red-900/40 rounded-lg p-6 border border-red-700 text-red-100">
+            {error}
+          </div>
+        ) : !selectedBill ? (
           /* Bills List */
           <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
             <div className="overflow-x-auto">
@@ -125,27 +155,17 @@ export default function ApproveStock() {
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bill Number</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Wholesaler</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Total Amount</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Payment Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Payment Status</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Delivered Date</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Items</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingBills.map((bill) => (
+                  {bills.map((bill) => (
                     <tr key={bill.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                       <td className="px-6 py-4 text-blue-400 font-semibold">{bill.billNo}</td>
                       <td className="px-6 py-4 text-slate-300">{bill.wholesaler}</td>
                       <td className="px-6 py-4 text-green-400 font-bold">₹{bill.totalAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-slate-300">{bill.paymentType}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          bill.paymentStatus === 'Paid' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'
-                        }`}>
-                          {bill.paymentStatus}
-                        </span>
-                      </td>
                       <td className="px-6 py-4 text-slate-300">{bill.deliveredDate}</td>
                       <td className="px-6 py-4 text-slate-300">{bill.medicines.length} items</td>
                       <td className="px-6 py-4">
@@ -158,6 +178,13 @@ export default function ApproveStock() {
                       </td>
                     </tr>
                   ))}
+                  {bills.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                        No pending bills found. Place an order from Purchase From Wholesaler first.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -186,16 +213,8 @@ export default function ApproveStock() {
                   <p className="text-2xl font-bold text-green-400">₹{selectedBill.totalAmount.toFixed(2)}</p>
                 </div>
                 <div className="bg-slate-700/50 p-4 rounded-lg">
-                  <p className="text-xs text-slate-400 mb-1">Payment Type</p>
-                  <p className="text-lg font-semibold text-white">{selectedBill.paymentType}</p>
-                </div>
-                <div className="bg-slate-700/50 p-4 rounded-lg">
-                  <p className="text-xs text-slate-400 mb-1">Payment Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                    selectedBill.paymentStatus === 'Paid' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'
-                  }`}>
-                    {selectedBill.paymentStatus}
-                  </span>
+                  <p className="text-xs text-slate-400 mb-1">Status</p>
+                  <p className="text-lg font-semibold text-white">{selectedBill.orderStatus}</p>
                 </div>
                 <div className="bg-slate-700/50 p-4 rounded-lg">
                   <p className="text-xs text-slate-400 mb-1">Delivered Date</p>
@@ -220,9 +239,10 @@ export default function ApproveStock() {
               </button>
               <button
                 onClick={handleAccept}
+                disabled={submitting}
                 className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
               >
-                Accept Selected
+                {submitting ? 'Saving...' : 'Accept Selected'}
               </button>
             </div>
 

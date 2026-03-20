@@ -31,3 +31,14 @@ export async function createWholesalerManufacturerPurchase(payload) {
     body: JSON.stringify(payload)
   })
 }
+
+export async function getWholesalerApproveStockBills(wholesalerId) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock`)
+}
+
+export async function approveWholesalerStock(wholesalerId, purchaseId, acceptedMedicineIds) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock/${encodeURIComponent(purchaseId)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ acceptedMedicineIds })
+  })
+}

@@ -13,3 +13,21 @@ export async function loginRetailer(username, password) {
 export async function getRetailerPurchases(retailerId) {
   return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/purchases`)
 }
+
+export async function createRetailerOrder(payload) {
+  return apiRequest('/api/retailer/orders', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function getRetailerApproveStockBills(retailerId) {
+  return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/approve-stock`)
+}
+
+export async function approveRetailerStock(retailerId, orderId, acceptedMedicineIds) {
+  return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/approve-stock/${encodeURIComponent(orderId)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ acceptedMedicineIds })
+  })
+}

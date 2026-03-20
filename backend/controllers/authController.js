@@ -35,6 +35,7 @@ async function loginCustomRole(req, res) {
       role,
       user: {
         id: userDoc.id,
+        uid: userDoc.id,
         username: userData.username,
         district: userData.district,
         inspectorDistrict: userData.inspectorDistrict || null,
