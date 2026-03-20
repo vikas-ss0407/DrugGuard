@@ -578,9 +578,50 @@ async function createSaleToRetailer(req, res) {
   }
 }
 
+async function getWholesalerSalesHistory(req, res) {
+  try {
+    const { wholesalerId } = req.params
+
+    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, wholesalerId)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const snapshot = await db
+      .collection(collections.TRANSACTIONS)
+      .where('sellerRole', '==', 'wholesaler')
+      .where('sellerId', '==', wholesalerId)
+      .get()
+
+    const sales = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .map((tx) => ({
+        id: tx.id,
+        billNo: tx.billNo || tx.id,
+        retailerId: tx.buyerId || '',
+        retailerName: tx.buyerName || tx.buyerId || 'Unknown Retailer',
+        date: tx.createdAt ? String(tx.createdAt).slice(0, 10) : '',
+        createdAt: tx.createdAt || '',
+        items: Array.isArray(tx.items) ? tx.items : [],
+        itemCount: Array.isArray(tx.items) ? tx.items.length : 0,
+        totalQuantity: Number(tx.quantity || 0),
+        totalAmount: Number(tx.totalAmount || 0),
+        paymentTerms: tx.paymentTerms || '',
+        deliveryDate: tx.deliveryDate || null,
+        specialNotes: tx.specialNotes || ''
+      }))
+
+    return res.json({ wholesalerId, sales })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
 module.exports = {
   ensureManufacturerCatalogSeeded,
   createSaleToRetailer,
+  getWholesalerSalesHistory,
   getManufacturerMedicines,
   createPurchaseFromManufacturer,
   getWholesalerSellCatalog,

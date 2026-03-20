@@ -1,6 +1,7 @@
 const express = require('express')
 const {
 	createSaleToRetailer,
+	getWholesalerSalesHistory,
 	getManufacturerMedicines,
 	createPurchaseFromManufacturer,
 	getWholesalerSellCatalog,
@@ -11,6 +12,7 @@ const {
 const router = express.Router()
 
 router.post('/sales', createSaleToRetailer)
+router.get('/:wholesalerId/sales-history', getWholesalerSalesHistory)
 router.get('/manufacturer-medicines', getManufacturerMedicines)
 router.post('/manufacturer-purchases', createPurchaseFromManufacturer)
 router.get('/:wholesalerId/sell-catalog', getWholesalerSellCatalog)
