@@ -1,17 +1,103 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { getWholesalerReturnRequests, updateReturnRequestStatus } from '../api/wholesaler/wholesalerApi'
 
 export default function ReturnRequests() {
-  const [activeTab, setActiveTab] = useState('all') // 'all', 'expiry', 'other'
+  const [activeTab, setActiveTab] = useState('all')
+  const [returnRequests, setReturnRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const returnRequests = [
-    { id: 1, billNo: 'WHL-001-2024', retailer: 'City Pharmacy', drug: 'Paracetamol 500mg', batch: 'BAT001', quantity: 50, reason: 'Damaged packaging', type: 'damage', date: '2024-02-02', status: 'Approved', refund: 1250 },
-    { id: 2, billNo: 'WHL-002-2024', retailer: 'Main Street Clinic', drug: 'Amoxicillin 250mg', batch: 'BAT004', quantity: 20, reason: 'Expired batch', type: 'expiry', date: '2024-02-01', status: 'Pending', refund: 850 },
-    { id: 3, billNo: 'WHL-003-2024', retailer: 'Central Pharmacy', drug: 'Ibuprofen 400mg', batch: 'BAT003', quantity: 100, reason: 'Quality issue', type: 'quality', date: '2024-01-30', status: 'Rejected', refund: 0 },
-    { id: 4, billNo: 'WHL-005-2024', retailer: 'Elite Retailers', drug: 'Cough Syrup', batch: 'BAT005', quantity: 15, reason: 'Near expiry - 30 days', type: 'expiry', date: '2024-01-28', status: 'Approved', refund: 525 },
-    { id: 5, billNo: 'WHL-006-2024', retailer: 'City Pharmacy', drug: 'Vitamin B12', batch: 'BAT006', quantity: 40, reason: 'Expired - received past expiry', type: 'expiry', date: '2024-01-27', status: 'Pending', refund: 720 },
-    { id: 6, billNo: 'WHL-007-2024', retailer: 'Green Valley Hospital', drug: 'Aspirin 75mg', batch: 'BAT002', quantity: 30, reason: 'Wrong item delivered', type: 'wrong_item', date: '2024-01-26', status: 'Approved', refund: 360 }
-  ]
+  useEffect(() => {
+    const fetchReturnRequests = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const wholesalerId = user.id || user.uid || user.username || user.email
+        
+        if (!wholesalerId) {
+          setError('Wholesaler ID not found')
+          return
+        }
+
+        const data = await getWholesalerReturnRequests(wholesalerId)
+        setReturnRequests(data.returnRequests || [])
+        setError(null)
+      } catch (err) {
+        setError(err.message || 'Failed to fetch return requests')
+        console.error('Error fetching return requests:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReturnRequests()
+  }, [])
+
+  const handleApprove = async (requestId) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const wholesalerId = user.id
+
+      await updateReturnRequestStatus(wholesalerId, requestId, 'Approved', 0)
+      
+      setReturnRequests(prev => 
+        prev.map(req => 
+          req.id === requestId ? { ...req, status: 'Approved' } : req
+        )
+      )
+    } catch (err) {
+      console.error('Error approving return:', err)
+    }
+  }
+
+  const handleReject = async (requestId) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const wholesalerId = user.id
+
+      await updateReturnRequestStatus(wholesalerId, requestId, 'Rejected', 0)
+      
+      setReturnRequests(prev => 
+        prev.map(req => 
+          req.id === requestId ? { ...req, status: 'Rejected' } : req
+        )
+      )
+    } catch (err) {
+      console.error('Error rejecting return:', err)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Approved': return 'bg-green-600/20 text-green-400'
+      case 'Pending': return 'bg-yellow-600/20 text-yellow-400'
+      case 'Rejected': return 'bg-red-600/20 text-red-400'
+      default: return 'bg-slate-600/20 text-slate-400'
+    }
+  }
+
+  const getTypeColor = (type) => {
+    if (type === 'expiry') return 'bg-yellow-600/20 text-yellow-400'
+    return 'bg-blue-600/20 text-blue-400'
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden flex items-center justify-center">
+        <p className="text-slate-300">Loading return requests...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
+        <div className="bg-red-500/20 border border-red-500 rounded-lg p-6">
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   const filteredRequests = returnRequests.filter(req => {
     if (activeTab === 'expiry') return req.type === 'expiry'
@@ -28,20 +114,6 @@ export default function ReturnRequests() {
     { label: 'Other Returns', value: `${otherReturns.length} requests`, icon: '📦', color: 'from-purple-600 to-purple-500' },
     { label: 'Pending Approval', value: returnRequests.filter(r => r.status === 'Pending').length, icon: '⏳', color: 'from-orange-600 to-orange-500' }
   ]
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Approved': return 'bg-green-600/20 text-green-400'
-      case 'Pending': return 'bg-yellow-600/20 text-yellow-400'
-      case 'Rejected': return 'bg-red-600/20 text-red-400'
-      default: return 'bg-slate-600/20 text-slate-400'
-    }
-  }
-
-  const getTypeColor = (type) => {
-    if (type === 'expiry') return 'bg-yellow-600/20 text-yellow-400'
-    return 'bg-blue-600/20 text-blue-400'
-  }
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -150,10 +222,16 @@ export default function ReturnRequests() {
                     <td className="px-6 py-4">
                       {req.status === 'Pending' ? (
                         <div className="flex flex-col gap-2">
-                          <button className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors whitespace-nowrap">
+                          <button 
+                            onClick={() => handleApprove(req.id)}
+                            className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors whitespace-nowrap"
+                          >
                             Approve
                           </button>
-                          <button className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors whitespace-nowrap">
+                          <button 
+                            onClick={() => handleReject(req.id)}
+                            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors whitespace-nowrap"
+                          >
                             Reject
                           </button>
                         </div>

@@ -1,35 +1,61 @@
+import { useState, useEffect } from 'react'
+import { getWholesalerProfile } from '../api/wholesaler/wholesalerApi'
+
 export default function WholesalerProfile() {
-  const profile = {
-    companyName: 'MediCorp Wholesale',
-    registrationNumber: 'WHL-REG-2020-001',
-    email: 'contact@medicorp.in',
-    phone: '+91-9876543210',
-    address: '45, Industrial Park, Delhi-110001',
-    warehouseArea: '10,000 Sq. Ft.',
-    temperature: '15-25°C',
-    humidity: '40-60%'
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const wholesalerId = user.id || user.uid || user.username || user.email
+        
+        if (!wholesalerId) {
+          setError('Wholesaler ID not found')
+          return
+        }
+
+        const data = await getWholesalerProfile(wholesalerId)
+        setProfile(data.profile)
+        setError(null)
+      } catch (err) {
+        setError(err.message || 'Failed to fetch profile')
+        console.error('Error fetching profile:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden flex items-center justify-center">
+        <p className="text-slate-300">Loading profile...</p>
+      </div>
+    )
   }
 
-  const pharmacist = {
-    name: 'Dr. Rajesh Kumar',
-    license: 'PH-LIC-2019-0045',
-    email: 'rajesh@medicorp.in',
-    registeredDate: '2019-03-15'
+  if (error) {
+    return (
+      <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
+        <div className="bg-red-500/20 border border-red-500 rounded-lg p-6">
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    )
   }
 
-  const license = {
-    status: 'Valid',
-    issueDate: '2023-01-10',
-    expiryDate: '2025-12-31',
-    issuedBy: 'Ministry of Health & Family Welfare'
+  if (!profile) {
+    return (
+      <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
+        <div className="text-slate-300">No profile data available</div>
+      </div>
+    )
   }
-
-  const documents = [
-    { name: 'GST Certificate', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Business License', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Pharmacist License', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Warehouse Photos', uploadedDate: '2023-01-10', status: 'Verified' }
-  ]
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -92,19 +118,19 @@ export default function WholesalerProfile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-slate-400 text-sm mb-1">Name</p>
-              <p className="text-white font-semibold text-lg">{pharmacist.name}</p>
+              <p className="text-white font-semibold text-lg">{profile.pharmacist.name}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">License Number</p>
-              <p className="text-white font-semibold">{pharmacist.license}</p>
+              <p className="text-white font-semibold">{profile.pharmacist.license}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">Email</p>
-              <p className="text-white font-semibold">{pharmacist.email}</p>
+              <p className="text-white font-semibold">{profile.pharmacist.email}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">Registered Date</p>
-              <p className="text-white font-semibold">{pharmacist.registeredDate}</p>
+              <p className="text-white font-semibold">{profile.pharmacist.registeredDate}</p>
             </div>
           </div>
         </div>
@@ -117,20 +143,20 @@ export default function WholesalerProfile() {
               <p className="text-slate-400 text-sm mb-1">License Status</p>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                <p className="text-white font-semibold text-lg">{license.status}</p>
+                <p className="text-white font-semibold text-lg">{profile.license.status}</p>
               </div>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">Issue Date</p>
-              <p className="text-white font-semibold">{license.issueDate}</p>
+              <p className="text-white font-semibold">{profile.license.issueDate}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">Expiry Date</p>
-              <p className="text-white font-semibold">{license.expiryDate}</p>
+              <p className="text-white font-semibold">{profile.license.expiryDate}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm mb-1">Issued By</p>
-              <p className="text-white font-semibold text-sm">{license.issuedBy}</p>
+              <p className="text-white font-semibold text-sm">{profile.license.issuedBy}</p>
             </div>
           </div>
         </div>
@@ -139,7 +165,7 @@ export default function WholesalerProfile() {
         <div className="bg-slate-800 rounded-lg p-8 border border-slate-700 shadow-lg">
           <h2 className="text-2xl font-bold text-white mb-6">Uploaded Documents</h2>
           <div className="space-y-3">
-            {documents.map((doc, idx) => (
+            {profile.documents.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between bg-slate-700 rounded-lg p-4">
                 <div className="flex items-center gap-4">
                   <span className="text-2xl">📄</span>

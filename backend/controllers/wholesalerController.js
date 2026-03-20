@@ -25,15 +25,19 @@ async function resolveWholesalerShop(identifier) {
     return { id: doc.id, ...doc.data() }
   }
 
+  // Try email (case-insensitive and trimmed)
+  const normalizedIdentifier = String(identifier).toLowerCase().trim()
+  
   const byEmail = await db
     .collection(collections.WHOLESALERS)
-    .where('email', '==', String(identifier))
-    .limit(1)
     .get()
 
-  if (!byEmail.empty) {
-    const doc = byEmail.docs[0]
-    return { id: doc.id, ...doc.data() }
+  for (const doc of byEmail.docs) {
+    const data = doc.data()
+    const dbEmail = String(data.email || '').toLowerCase().trim()
+    if (dbEmail === normalizedIdentifier) {
+      return { id: doc.id, ...data }
+    }
   }
 
   return null
@@ -688,6 +692,254 @@ async function getWholesalerSalesHistory(req, res) {
   }
 }
 
+async function getWholesalerReturnRequests(req, res) {
+  try {
+    const wholesalerIdentifier = req.params.wholesalerId
+
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const snapshot = await db
+      .collection(collections.RETURN_REQUESTS)
+      .where('wholesalerId', '==', wholesalerShop.id)
+      .get()
+
+    const returnRequests = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .map((req) => ({
+        id: req.id,
+        billNo: req.billNo || req.id,
+        retailer: req.retailerName || req.retailerId || 'Unknown Retailer',
+        retailerId: req.retailerId || '',
+        drug: req.medicineName || req.productName || '-',
+        batch: req.batch || '-',
+        quantity: Number(req.quantity || 0),
+        reason: req.reason || '-',
+        type: req.returnType || 'other',
+        date: req.createdAt ? String(req.createdAt).slice(0, 10) : '',
+        status: req.status || 'Pending',
+        refund: Number(req.refundAmount || 0)
+      }))
+
+    return res.json({ wholesalerId: wholesalerShop.id, returnRequests })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function createReturnRequest(req, res) {
+  try {
+    const wholesalerIdentifier = req.params.wholesalerId
+    const { retailerId, billNo, medicineName, batch, quantity, reason, returnType } = req.body
+
+    if (!retailerId || !medicineName || !quantity || !reason) {
+      return res.status(400).json({ message: 'retailerId, medicineName, quantity, and reason are required' })
+    }
+
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const nowIso = new Date().toISOString()
+
+    const returnRequest = {
+      billNo: billNo || `RET-${Date.now()}`,
+      wholesalerId: wholesalerShop.id,
+      wholesalerName: wholesalerShop.shopFirmName || wholesalerShop.username || '',
+      retailerId: retailerShop.id,
+      retailerName: retailerShop.shopFirmName || retailerShop.username || '',
+      medicineName,
+      batch: batch || '-',
+      quantity: Number(quantity),
+      reason,
+      returnType: returnType || 'other',
+      status: 'Pending',
+      refundAmount: 0,
+      approvedAt: null,
+      rejectedAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    }
+
+    const ref = await db.collection(collections.RETURN_REQUESTS).add(returnRequest)
+    return res.status(201).json({
+      message: 'Return request created',
+      requestId: ref.id,
+      status: 'Pending'
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function updateReturnRequestStatus(req, res) {
+  try {
+    const wholesalerIdentifier = req.params.wholesalerId
+    const { requestId } = req.params
+    const { status, refundAmount } = req.body
+
+    if (!status || !['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Valid status (Approved or Rejected) is required' })
+    }
+
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const ref = db.collection(collections.RETURN_REQUESTS).doc(requestId)
+    const doc = await ref.get()
+
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Return request not found' })
+    }
+
+    const request = doc.data()
+    if (request.wholesalerId !== wholesalerShop.id) {
+      return res.status(403).json({ message: 'You are not allowed to update this return request' })
+    }
+
+    const nowIso = new Date().toISOString()
+
+    await ref.update({
+      status,
+      refundAmount: status === 'Approved' ? Number(refundAmount || 0) : 0,
+      [status === 'Approved' ? 'approvedAt' : 'rejectedAt']: nowIso,
+      updatedAt: nowIso
+    })
+
+    return res.json({
+      message: `Return request ${status.toLowerCase()}`,
+      status
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getWholesalerProfile(req, res) {
+  try {
+    const wholesalerIdentifier = req.params.wholesalerId
+
+    const wholesalerShop = await resolveWholesalerShop(wholesalerIdentifier)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    let licenseData = null
+    if (wholesalerShop.licenseId) {
+      const licenseDoc = await db.collection(collections.LICENSES).doc(String(wholesalerShop.licenseId)).get()
+      if (licenseDoc.exists) {
+        licenseData = licenseDoc.data()
+      }
+    }
+
+    if (!licenseData && wholesalerShop.licenseNumber) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('licenseNumber', '==', String(wholesalerShop.licenseNumber))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && wholesalerShop.username) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('credentials.username', '==', String(wholesalerShop.username))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && wholesalerShop.email) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('credentials.email', '==', String(wholesalerShop.email))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && wholesalerShop.shopFirmName) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('establishment.shopFirmName', '==', String(wholesalerShop.shopFirmName))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    const establishment = licenseData?.establishment || {}
+    const establishmentAddress = establishment.address || {}
+    const establishmentContact = establishment.contact || {}
+    const pharmacist = licenseData?.pharmacist || {}
+    const infrastructure = licenseData?.infrastructure || {}
+    const refrigerator = licenseData?.equipment?.refrigerator || {}
+
+    const profile = {
+      id: wholesalerShop.id,
+      username: wholesalerShop.username || '',
+      companyName: wholesalerShop.shopFirmName || establishment.shopFirmName || 'Unknown Company',
+      registrationNumber: licenseData?.licenseNumber || wholesalerShop.licenseNumber || '-',
+      email: wholesalerShop.email || '-',
+      phone: wholesalerShop.mobileNumber || wholesalerShop.mobileNo || wholesalerShop.phone || establishmentContact.mobileNumber || '-',
+      address: ([
+        establishmentAddress.doorNo,
+        establishmentAddress.area,
+        establishmentAddress.city,
+        establishmentAddress.district || wholesalerShop.district,
+        wholesalerShop.address
+      ]
+        .map((part) => String(part || '').replace(/^\s*,\s*/, '').trim())
+        .filter(Boolean)
+        .join(', ') || '-'),
+      warehouseArea: infrastructure.totalShopArea ? `${infrastructure.totalShopArea} Sq. Ft.` : '-',
+      temperature: refrigerator.temperatureRange || '-',
+      humidity: wholesalerShop.humidity || '-',
+      pharmacist: {
+        name: pharmacist.name || '-',
+        license: pharmacist.registrationId || '-',
+        email: pharmacist.email || '-',
+        registeredDate: pharmacist.dateOfBirth || '-'
+      },
+      license: {
+        status: licenseData?.status || wholesalerShop.licenseStatus || 'Not Available',
+        issueDate: licenseData?.licenseCreationDate || wholesalerShop.licenseIssueDate || '-',
+        expiryDate: wholesalerShop.licenseExpiryDate || '-',
+        issuedBy: 'Ministry of Health & Family Welfare'
+      },
+      documents: [
+        { name: 'GST Certificate', uploadedDate: wholesalerShop.createdAt ? wholesalerShop.createdAt.slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Business License', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Pharmacist License', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Warehouse Photos', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' }
+      ]
+    }
+
+    return res.json({ profile })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
 module.exports = {
   ensureManufacturerCatalogSeeded,
   createSaleToRetailer,
@@ -697,5 +949,9 @@ module.exports = {
   createPurchaseFromManufacturer,
   getWholesalerSellCatalog,
   getWholesalerApproveStockBills,
-  approveWholesalerStock
+  approveWholesalerStock,
+  getWholesalerReturnRequests,
+  createReturnRequest,
+  updateReturnRequestStatus,
+  getWholesalerProfile
 }

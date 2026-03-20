@@ -54,3 +54,25 @@ export async function approveWholesalerStock(wholesalerId, purchaseId, acceptedM
     body: JSON.stringify({ acceptedMedicineIds })
   })
 }
+
+export async function getWholesalerReturnRequests(wholesalerId) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`)
+}
+
+export async function createWholesalerReturnRequest(wholesalerId, payload) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function updateReturnRequestStatus(wholesalerId, requestId, status, refundAmount) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests/${encodeURIComponent(requestId)}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, refundAmount })
+  })
+}
+
+export async function getWholesalerProfile(wholesalerId) {
+  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/profile`)
+}
