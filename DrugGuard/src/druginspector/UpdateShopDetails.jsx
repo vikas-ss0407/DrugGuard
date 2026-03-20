@@ -1,20 +1,92 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getInspectorShops } from '../api/druginspector/inspectorApi'
+
+function mapLicenseToFormData(licenseData = {}, fallbackShop = {}) {
+  const establishment = licenseData.establishment || {}
+  const address = establishment.address || {}
+  const contact = establishment.contact || {}
+  const owner = licenseData.owner || {}
+  const pharmacist = licenseData.pharmacist || {}
+  const infrastructure = licenseData.infrastructure || {}
+  const equipment = licenseData.equipment || {}
+  const ac = equipment.ac || {}
+  const refrigerator = equipment.refrigerator || {}
+  const credentials = licenseData.credentials || {}
+
+  return {
+    fullName: establishment.fullName || fallbackShop.owner || '',
+    dateOfBirth: establishment.dateOfBirth || '',
+    licenseType: licenseData.licenseType || fallbackShop.type || '',
+    shopFirmName: establishment.shopFirmName || fallbackShop.name || '',
+    ownershipType: establishment.ownershipType || '',
+    doorNo: address.doorNo || '',
+    area: address.area || '',
+    city: address.city || '',
+    post: address.post || '',
+    district: address.district || '',
+    state: address.state || '',
+    pinCode: address.pinCode || '',
+    mobileNumber: contact.mobileNumber || fallbackShop.phone || '',
+    email: contact.email || fallbackShop.email || '',
+    ownerPanCard: owner.panCardNumber || '',
+    ownerAadharNumber: owner.aadhaarNumber || '',
+    ownerAadharCardImage: null,
+    pharmacistName: pharmacist.name || '',
+    registrationId: pharmacist.registrationId || '',
+    qualification: pharmacist.qualification || '',
+    yearsOfExperience:
+      pharmacist.yearsOfExperience === null || pharmacist.yearsOfExperience === undefined
+        ? ''
+        : String(pharmacist.yearsOfExperience),
+    pharmacistDateOfBirth: pharmacist.dateOfBirth || '',
+    aadhaarNumber: pharmacist.aadhaarNumber || '',
+    pharmacistMobile: pharmacist.mobileNumber || '',
+    pharmacistEmail: pharmacist.email || '',
+    employmentType: pharmacist.employmentType || '',
+    pharmacistCertificate: null,
+    pharmacistSignatureImage: null,
+    appointmentDocument: null,
+    totalShopArea:
+      infrastructure.totalShopArea === null || infrastructure.totalShopArea === undefined
+        ? ''
+        : String(infrastructure.totalShopArea),
+    shopLength:
+      infrastructure.shopLength === null || infrastructure.shopLength === undefined
+        ? ''
+        : String(infrastructure.shopLength),
+    shopBreadth:
+      infrastructure.shopBreadth === null || infrastructure.shopBreadth === undefined
+        ? ''
+        : String(infrastructure.shopBreadth),
+    storageAreaAvailable: Boolean(infrastructure.storageAreaAvailable),
+    separateScheduleDrugStorage: Boolean(infrastructure.separateScheduleDrugStorage),
+    powerBackupAvailable: Boolean(infrastructure.powerBackupAvailable),
+    acAvailable: Boolean(ac.available),
+    acBrand: ac.brand || '',
+    acModel: ac.model || '',
+    acCapacity: ac.capacity === null || ac.capacity === undefined ? '' : String(ac.capacity),
+    refrigeratorAvailable: Boolean(refrigerator.available),
+    refrigeratorBrand: refrigerator.brand || '',
+    refrigeratorModel: refrigerator.model || '',
+    refrigeratorCapacity:
+      refrigerator.capacity === null || refrigerator.capacity === undefined
+        ? ''
+        : String(refrigerator.capacity),
+    refrigeratorTempRange: refrigerator.temperatureRange || '',
+    loginEmail: credentials.email || fallbackShop.email || '',
+    loginPassword: '',
+    confirmPassword: ''
+  }
+}
 
 export default function UpdateShopDetails() {
   const [view, setView] = useState('list') // 'list', 'update'
   const [selectedShop, setSelectedShop] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('all') // 'all', 'wholesale', 'retail'
-
-  // Mock data for shops
-  const allShops = [
-    { id: 1, name: 'MediCorp Wholesale', licenseNo: 'CHE/WS/2024/12345', type: 'Wholesale', owner: 'Rajesh Kumar', phone: '9876543210', email: 'medicorp@example.com', status: 'Active' },
-    { id: 2, name: 'HealthCare Distributors', licenseNo: 'CHE/WS/2024/12346', type: 'Wholesale', owner: 'Priya Sharma', phone: '9876543211', email: 'healthcare@example.com', status: 'Active' },
-    { id: 3, name: 'Prime Pharmaceuticals', licenseNo: 'CHE/WS/2024/12347', type: 'Wholesale', owner: 'Amit Patel', phone: '9876543212', email: 'prime@example.com', status: 'Active' },
-    { id: 4, name: 'City Pharmacy', licenseNo: 'CHE/RT/2024/56789', type: 'Retail', owner: 'Sunita Reddy', phone: '9876543220', email: 'citypharmacy@example.com', status: 'Active' },
-    { id: 5, name: 'Main Street Clinic', licenseNo: 'CHE/RT/2024/56790', type: 'Retail', owner: 'Mohammed Ali', phone: '9876543221', email: 'mainstreet@example.com', status: 'Active' },
-    { id: 6, name: 'Central Pharmacy', licenseNo: 'CHE/RT/2024/56791', type: 'Retail', owner: 'Kavita Singh', phone: '9876543222', email: 'central@example.com', status: 'Active' },
-  ]
+  const [shops, setShops] = useState([])
+  const [isLoadingShops, setIsLoadingShops] = useState(true)
+  const [shopLoadError, setShopLoadError] = useState('')
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -66,7 +138,56 @@ export default function UpdateShopDetails() {
     confirmPassword: '',
   })
 
-  const filteredShops = allShops.filter(shop => {
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadInspectorShops() {
+      const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const district = session.district || ''
+
+      if (!district) {
+        if (isMounted) {
+          setShopLoadError('Inspector district not found in session. Please login again.')
+          setShops([])
+          setIsLoadingShops(false)
+        }
+        return
+      }
+
+      try {
+        if (isMounted) {
+          setIsLoadingShops(true)
+          setShopLoadError('')
+        }
+
+        const response = await getInspectorShops(district)
+        if (!isMounted) {
+          return
+        }
+
+        setShops(Array.isArray(response.shops) ? response.shops : [])
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setShopLoadError(error.message || 'Failed to load shops from backend')
+        setShops([])
+      } finally {
+        if (isMounted) {
+          setIsLoadingShops(false)
+        }
+      }
+    }
+
+    loadInspectorShops()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const filteredShops = shops.filter(shop => {
     const matchesSearch = searchQuery === '' || 
       shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shop.licenseNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,56 +202,7 @@ export default function UpdateShopDetails() {
 
   const handleShopSelect = (shop) => {
     setSelectedShop(shop)
-    // Pre-fill form with shop data (in real app, fetch from backend)
-    setFormData({
-      fullName: shop.owner,
-      dateOfBirth: '1980-01-01',
-      licenseType: shop.type,
-      shopFirmName: shop.name,
-      ownershipType: 'Individual',
-      doorNo: '123',
-      area: 'Anna Nagar',
-      city: 'Chennai',
-      post: 'Anna Nagar',
-      district: 'Chennai',
-      state: 'Tamil Nadu',
-      pinCode: '600040',
-      mobileNumber: shop.phone,
-      email: shop.email,
-      ownerPanCard: 'AAAPA1234A',
-      ownerAadharNumber: '1234 5678 9012',
-      ownerAadharCardImage: null,
-      pharmacistName: 'Dr. Ramesh Kumar',
-      registrationId: 'TN/PHARM/2020/12345',
-      qualification: 'B.Pharm',
-      yearsOfExperience: '5',
-      pharmacistDateOfBirth: '1985-05-15',
-      aadhaarNumber: '1234 5678 9012',
-      pharmacistMobile: '9876543230',
-      pharmacistEmail: 'pharmacist@example.com',
-      employmentType: 'Full-time',
-      pharmacistCertificate: null,
-      pharmacistSignatureImage: null,
-      appointmentDocument: null,
-      totalShopArea: '500',
-      shopLength: '25',
-      shopBreadth: '20',
-      storageAreaAvailable: true,
-      separateScheduleDrugStorage: true,
-      powerBackupAvailable: true,
-      acAvailable: true,
-      acBrand: 'Voltas',
-      acModel: 'V124',
-      acCapacity: '1.5',
-      refrigeratorAvailable: true,
-      refrigeratorBrand: 'Samsung',
-      refrigeratorModel: 'RT28',
-      refrigeratorCapacity: '253',
-      refrigeratorTempRange: '2°C to 8°C',
-      loginEmail: shop.email,
-      loginPassword: '',
-      confirmPassword: '',
-    })
+    setFormData(mapLicenseToFormData(shop.licenseData, shop))
     setView('update')
   }
 
@@ -212,6 +284,12 @@ export default function UpdateShopDetails() {
             </div>
 
             {/* Shops Table */}
+            {shopLoadError && (
+              <div className="mb-4 rounded-lg border border-red-700 bg-red-900/40 p-4 text-red-200">
+                {shopLoadError}
+              </div>
+            )}
+
             <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -228,7 +306,15 @@ export default function UpdateShopDetails() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredShops.map((shop) => (
+                    {isLoadingShops && (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-12 text-center text-slate-400">
+                          Loading shops from backend...
+                        </td>
+                      </tr>
+                    )}
+
+                    {!isLoadingShops && filteredShops.map((shop) => (
                       <tr key={shop.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                         <td className="px-6 py-4 text-white font-semibold">{shop.name}</td>
                         <td className="px-6 py-4 text-slate-300 font-mono text-sm">{shop.licenseNo}</td>
@@ -244,7 +330,7 @@ export default function UpdateShopDetails() {
                         <td className="px-6 py-4 text-slate-300">{shop.email}</td>
                         <td className="px-6 py-4">
                           <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                            {shop.status}
+                            {String(shop.status || '').toUpperCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -260,7 +346,7 @@ export default function UpdateShopDetails() {
                   </tbody>
                 </table>
               </div>
-              {filteredShops.length === 0 && (
+              {!isLoadingShops && filteredShops.length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-slate-400">No shops found matching your search criteria</p>
                 </div>

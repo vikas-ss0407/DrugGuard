@@ -1,47 +1,28 @@
 const { db } = require('../config/firebaseAdmin')
 const collections = require('../models/collections')
+const { createLicenseAndAccount } = require('../services/licenseCreationService')
+const {
+  getInspectorWholesalerSales,
+  getInspectorRetailerPurchases
+} = require('../services/inspectorTransactionService')
+const { getInspectorDashboardSummary } = require('../services/inspectorDashboardService')
 
 async function createLicense(req, res) {
   try {
-    const { inspectorEmail, inspectorDistrict, licenseType, loginUsername, loginPassword } = req.body
-
-    if (!inspectorEmail || !inspectorDistrict || !licenseType || !loginUsername || !loginPassword) {
-      return res.status(400).json({
-        message: 'inspectorEmail, inspectorDistrict, licenseType, loginUsername and loginPassword are required'
-      })
-    }
-
-    const payload = {
-      ...req.body,
-      inspectorDistrict,
-      createdByInspectorEmail: inspectorEmail,
-      createdAt: new Date().toISOString()
-    }
-
-    const licenseRef = await db.collection(collections.LICENSES).add(payload)
-
-    const targetCollection = licenseType === 'Wholesale' ? collections.WHOLESALERS : collections.RETAILERS
-    const accountDoc = {
-      username: loginUsername,
-      password: loginPassword,
-      district: req.body.district || inspectorDistrict,
-      inspectorDistrict,
-      licenseId: licenseRef.id,
-      shopFirmName: req.body.shopFirmName || '',
-      ownerName: req.body.fullName || '',
-      createdAt: new Date().toISOString()
-    }
-
-    await db.collection(targetCollection).doc(loginUsername).set(accountDoc)
+    const result = await createLicenseAndAccount(req.body)
 
     return res.status(201).json({
       message: 'License created successfully',
-      licenseId: licenseRef.id,
-      accountRole: licenseType === 'Wholesale' ? 'wholesaler' : 'retailer',
-      username: loginUsername
+      ...result
     })
   } catch (error) {
-    return res.status(500).json({ message: error.message })
+    console.error('License creation error:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      stack: error.stack,
+      body: req.body ? Object.keys(req.body) : 'no body'
+    })
+    return res.status(error.statusCode || 500).json({ message: error.message })
   }
 }
 
@@ -132,8 +113,93 @@ async function getInspectorRetailerVisibility(req, res) {
   }
 }
 
+async function getInspectorShops(req, res) {
+  try {
+    const { district } = req.query
+
+    if (!district) {
+      return res.status(400).json({ message: 'district is required' })
+    }
+
+    const snapshot = await db
+      .collection(collections.LICENSES)
+      .where('inspectorDistrict', '==', district)
+      .get()
+
+    const shops = snapshot.docs.map((doc) => {
+      const data = doc.data()
+
+      return {
+        id: doc.id,
+        licenseId: doc.id,
+        licenseNo: data.licenseNumber || '',
+        type: data.licenseType || '',
+        name: data.establishment?.shopFirmName || '',
+        owner: data.establishment?.fullName || '',
+        phone: data.establishment?.contact?.mobileNumber || '',
+        email: data.establishment?.contact?.email || '',
+        status: data.status || 'active',
+        licenseData: data
+      }
+    })
+
+    return res.json({ district, shops })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getWholesalerSalesForInspector(req, res) {
+  try {
+    const { district } = req.query
+
+    if (!district) {
+      return res.status(400).json({ message: 'district is required' })
+    }
+
+    const result = await getInspectorWholesalerSales(district)
+    return res.json(result)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getRetailerPurchasesForInspector(req, res) {
+  try {
+    const { district } = req.query
+
+    if (!district) {
+      return res.status(400).json({ message: 'district is required' })
+    }
+
+    const result = await getInspectorRetailerPurchases(district)
+    return res.json(result)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getDashboardSummaryForInspector(req, res) {
+  try {
+    const { district } = req.query
+
+    if (!district) {
+      return res.status(400).json({ message: 'district is required' })
+    }
+
+    const result = await getInspectorDashboardSummary(district)
+    return res.json(result)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
 module.exports = {
   createLicense,
   getInspectorProfile,
-  getInspectorRetailerVisibility
+  getInspectorRetailerVisibility,
+  getInspectorShops,
+  getWholesalerSalesForInspector,
+  getRetailerPurchasesForInspector,
+  getDashboardSummaryForInspector
 }

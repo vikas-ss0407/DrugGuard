@@ -3,5 +3,7 @@ module.exports = {
   WHOLESALERS: 'wholesalers',
   RETAILERS: 'retailers',
   LICENSES: 'licenses',
-  TRANSACTIONS: 'transactions'
+  TRANSACTIONS: 'transactions',
+  MANUFACTURER_MEDICINES: 'manufacturer_medicines',
+  WHOLESALER_PURCHASES: 'wholesaler_purchases'
 }

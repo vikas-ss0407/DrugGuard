@@ -1,77 +1,119 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getInspectorWholesalerSales } from '../api/druginspector/wholesalerSalesApi'
+
+function formatNumber(value) {
+  return new Intl.NumberFormat('en-IN').format(Number(value) || 0)
+}
+
+function buildShops(transactions) {
+  const byWholesaler = new Map()
+
+  transactions.forEach((tx) => {
+    const key = tx.wholesalerId || 'unknown'
+    if (!byWholesaler.has(key)) {
+      byWholesaler.set(key, {
+        id: key,
+        name: tx.wholesalerName || 'Unknown Wholesaler',
+        licenseNo: tx.wholesalerLicenseNo || '',
+        totalBills: 0,
+        totalQuantity: 0
+      })
+    }
+
+    const shop = byWholesaler.get(key)
+    shop.totalBills += 1
+    shop.totalQuantity += Number(tx.quantity) || 0
+  })
+
+  return Array.from(byWholesaler.values())
+}
 
 export default function ViewWholesalerSales() {
-  const [view, setView] = useState('shops') // 'shops', 'bills', 'products'
+  const [view, setView] = useState('shops')
   const [selectedShop, setSelectedShop] = useState(null)
   const [selectedBill, setSelectedBill] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [transactions, setTransactions] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
-  // Mock data for wholesaler shops
-  const shops = [
-    { id: 1, name: 'MediCorp Wholesale', licenseNo: 'CHE/WS/2024/12345', totalBills: 24, totalSales: '₹5,47,500' },
-    { id: 2, name: 'HealthCare Distributors', licenseNo: 'CHE/WS/2024/12346', totalBills: 18, totalSales: '₹3,85,000' },
-    { id: 3, name: 'Prime Pharmaceuticals', licenseNo: 'CHE/WS/2024/12347', totalBills: 32, totalSales: '₹8,45,000' },
-  ]
+  useEffect(() => {
+    let isMounted = true
 
-  // Mock data for bills (by shop)
-  const billsByShop = {
-    1: [
-      { billId: 'B001', date: '2024-02-03', retailer: 'City Pharmacy', totalAmount: '₹125,000', items: 5 },
-      { billId: 'B002', date: '2024-02-01', retailer: 'Health Plus Store', totalAmount: '₹85,000', items: 3 },
-      { billId: 'B003', date: '2024-01-30', retailer: 'MedCare Retail', totalAmount: '₹95,500', items: 4 },
-    ],
-    2: [
-      { billId: 'B101', date: '2024-02-02', retailer: 'Wellness Pharmacy', totalAmount: '₹65,000', items: 4 },
-      { billId: 'B102', date: '2024-01-29', retailer: 'Care Point Store', totalAmount: '₹78,000', items: 6 },
-    ],
-    3: [
-      { billId: 'B201', date: '2024-02-03', retailer: 'LifeCare Pharmacy', totalAmount: '₹145,000', items: 8 },
-      { billId: 'B202', date: '2024-01-31', retailer: 'Quick Meds', totalAmount: '₹98,500', items: 5 },
-    ]
-  }
+    async function loadData() {
+      const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const district = session.district || ''
 
-  // Mock data for products (by bill)
-  const productsByBill = {
-    'B001': [
-      { id: 1, medicineName: 'Paracetamol 500mg', manufacturer: 'Cipla Ltd.', batchNo: 'PCT2024A123', manufactureDate: '2024-01-15', expiryDate: '2026-01-14', mrp: '₹25', rate: '₹22', quantity: 5000, total: '₹110,000' },
-      { id: 2, medicineName: 'Vitamin C Tablets', manufacturer: 'Sun Pharma', batchNo: 'VTC2024B456', manufactureDate: '2024-02-10', expiryDate: '2026-02-09', mrp: '₹150', rate: '₹135', quantity: 100, total: '₹13,500' },
-    ],
-    'B002': [
-      { id: 3, medicineName: 'Amoxicillin 250mg', manufacturer: 'Lupin Ltd.', batchNo: 'AMX2024C789', manufactureDate: '2024-01-05', expiryDate: '2026-01-04', mrp: '₹45', rate: '₹42', quantity: 2000, total: '₹84,000' },
-    ],
-    'B003': [
-      { id: 4, medicineName: 'Ibuprofen 400mg', manufacturer: 'Dr. Reddy\'s', batchNo: 'IBU2024D012', manufactureDate: '2024-02-01', expiryDate: '2026-01-31', mrp: '₹32', rate: '₹30', quantity: 3000, total: '₹90,000' },
-    ],
-    'B101': [
-      { id: 5, medicineName: 'Cough Syrup', manufacturer: 'Himalaya', batchNo: 'CSY2024E345', manufactureDate: '2024-01-20', expiryDate: '2025-07-19', mrp: '₹85', rate: '₹78', quantity: 800, total: '₹62,400' },
-    ],
-    'B102': [
-      { id: 6, medicineName: 'Aspirin 75mg', manufacturer: 'Bayer', batchNo: 'ASP2024F678', manufactureDate: '2024-01-18', expiryDate: '2025-07-17', mrp: '₹18', rate: '₹15', quantity: 5000, total: '₹75,000' },
-    ],
-    'B201': [
-      { id: 7, medicineName: 'Metformin 500mg', manufacturer: 'USV Ltd.', batchNo: 'MET2024G901', manufactureDate: '2023-12-25', expiryDate: '2025-12-24', mrp: '₹12', rate: '₹10', quantity: 10000, total: '₹100,000' },
-      { id: 8, medicineName: 'Atorvastatin 10mg', manufacturer: 'Ranbaxy', batchNo: 'ATV2024H234', manufactureDate: '2024-01-08', expiryDate: '2026-01-07', mrp: '₹55', rate: '₹50', quantity: 900, total: '₹45,000' },
-    ],
-    'B202': [
-      { id: 9, medicineName: 'Omeprazole 20mg', manufacturer: 'Cadila', batchNo: 'OME2024I567', manufactureDate: '2024-01-12', expiryDate: '2025-07-11', mrp: '₹28', rate: '₹25', quantity: 3800, total: '₹95,000' },
-    ]
-  }
+      if (!district) {
+        if (isMounted) {
+          setLoadError('Inspector district not found in session. Please login again.')
+          setTransactions([])
+          setIsLoading(false)
+        }
+        return
+      }
 
-  // All medicines for search functionality
-  const allMedicines = [
-    { medicineName: 'Paracetamol 500mg', manufacturer: 'Cipla Ltd.', batchNo: 'PCT2024A123', mrp: '₹25', rate: '₹22', retailer: 'City Pharmacy', wholesaler: 'MediCorp Wholesale', billId: 'B001', date: '2024-02-03' },
-    { medicineName: 'Vitamin C Tablets', manufacturer: 'Sun Pharma', batchNo: 'VTC2024B456', mrp: '₹150', rate: '₹135', retailer: 'City Pharmacy', wholesaler: 'MediCorp Wholesale', billId: 'B001', date: '2024-02-03' },
-    { medicineName: 'Amoxicillin 250mg', manufacturer: 'Lupin Ltd.', batchNo: 'AMX2024C789', mrp: '₹45', rate: '₹42', retailer: 'Health Plus Store', wholesaler: 'MediCorp Wholesale', billId: 'B002', date: '2024-02-01' },
-    { medicineName: 'Ibuprofen 400mg', manufacturer: 'Dr. Reddy\'s', batchNo: 'IBU2024D012', mrp: '₹32', rate: '₹30', retailer: 'MedCare Retail', wholesaler: 'MediCorp Wholesale', billId: 'B003', date: '2024-01-30' },
-    { medicineName: 'Cough Syrup', manufacturer: 'Himalaya', batchNo: 'CSY2024E345', mrp: '₹85', rate: '₹78', retailer: 'Wellness Pharmacy', wholesaler: 'HealthCare Distributors', billId: 'B101', date: '2024-02-02' },
-    { medicineName: 'Aspirin 75mg', manufacturer: 'Bayer', batchNo: 'ASP2024F678', mrp: '₹18', rate: '₹15', retailer: 'Care Point Store', wholesaler: 'HealthCare Distributors', billId: 'B102', date: '2024-01-29' },
-    { medicineName: 'Metformin 500mg', manufacturer: 'USV Ltd.', batchNo: 'MET2024G901', mrp: '₹12', rate: '₹10', retailer: 'LifeCare Pharmacy', wholesaler: 'Prime Pharmaceuticals', billId: 'B201', date: '2024-02-03' },
-    { medicineName: 'Atorvastatin 10mg', manufacturer: 'Ranbaxy', batchNo: 'ATV2024H234', mrp: '₹55', rate: '₹50', retailer: 'LifeCare Pharmacy', wholesaler: 'Prime Pharmaceuticals', billId: 'B201', date: '2024-02-03' },
-    { medicineName: 'Omeprazole 20mg', manufacturer: 'Cadila', batchNo: 'OME2024I567', mrp: '₹28', rate: '₹25', retailer: 'Quick Meds', wholesaler: 'Prime Pharmaceuticals', billId: 'B202', date: '2024-01-31' },
-  ]
+      try {
+        if (isMounted) {
+          setIsLoading(true)
+          setLoadError('')
+        }
+
+        const response = await getInspectorWholesalerSales(district)
+
+        if (!isMounted) {
+          return
+        }
+
+        setTransactions(Array.isArray(response.transactions) ? response.transactions : [])
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setLoadError(error.message || 'Failed to load wholesaler sales from backend')
+        setTransactions([])
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const shops = useMemo(() => buildShops(transactions), [transactions])
+
+  const selectedShopTransactions = useMemo(() => {
+    if (!selectedShop) {
+      return []
+    }
+
+    return transactions.filter((tx) => tx.wholesalerId === selectedShop.id)
+  }, [selectedShop, transactions])
+
+  const filteredTransactions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) {
+      return transactions
+    }
+
+    return transactions.filter((tx) => {
+      return (
+        String(tx.productName || '').toLowerCase().includes(query) ||
+        String(tx.billId || '').toLowerCase().includes(query)
+      )
+    })
+  }, [searchQuery, transactions])
 
   const handleShopClick = (shop) => {
     setSelectedShop(shop)
+    setSelectedBill(null)
     setView('bills')
   }
 
@@ -81,30 +123,23 @@ export default function ViewWholesalerSales() {
   }
 
   const handleBackToShops = () => {
-    setView('shops')
     setSelectedShop(null)
     setSelectedBill(null)
+    setView('shops')
   }
 
   const handleBackToBills = () => {
-    setView('bills')
     setSelectedBill(null)
+    setView('bills')
   }
-
-  const filteredMedicines = allMedicines.filter(med => 
-    searchQuery === '' || 
-    med.medicineName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    med.batchNo.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
       <div className="w-full">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             {view !== 'shops' && (
-              <button 
+              <button
                 onClick={view === 'bills' ? handleBackToShops : handleBackToBills}
                 className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
               >
@@ -113,79 +148,78 @@ export default function ViewWholesalerSales() {
             )}
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">
-                {view === 'shops' && 'Wholesaler Shops'}
+                {view === 'shops' && 'Wholesaler Sales'}
                 {view === 'bills' && `Bills - ${selectedShop?.name}`}
                 {view === 'products' && `Bill Details - ${selectedBill?.billId}`}
               </h1>
               <p className="text-slate-400">
-                {view === 'shops' && 'View all registered wholesaler shops'}
-                {view === 'bills' && 'View all bills for this wholesaler'}
-                {view === 'products' && 'View product details for this bill'}
+                {view === 'shops' && 'Data is loaded directly from database transactions'}
+                {view === 'bills' && 'Sales entries by selected wholesaler'}
+                {view === 'products' && 'Transaction product details'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Search Section - Always visible */}
         <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">🔍 Search Medicine by Name or Batch Number</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Search by Product Name or Bill ID</h3>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by medicine name or batch number..."
+            placeholder="Search product or bill id..."
             className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          
-          {/* Search Results */}
+
           {searchQuery && (
             <div className="mt-6">
-              <h4 className="text-white font-semibold mb-4">Search Results ({filteredMedicines.length})</h4>
-              {filteredMedicines.length > 0 ? (
+              <h4 className="text-white font-semibold mb-4">Search Results ({filteredTransactions.length})</h4>
+              {filteredTransactions.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-700">
                       <tr>
-                        <th className="px-4 py-3 text-left text-slate-300">Medicine Name</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Manufacturer</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Batch No</th>
-                        <th className="px-4 py-3 text-left text-slate-300">MRP</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Rate</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
                         <th className="px-4 py-3 text-left text-slate-300">Bill ID</th>
                         <th className="px-4 py-3 text-left text-slate-300">Date</th>
+                        <th className="px-4 py-3 text-left text-slate-300">Product</th>
+                        <th className="px-4 py-3 text-left text-slate-300">Quantity</th>
+                        <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
+                        <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMedicines.map((med, idx) => (
-                        <tr key={idx} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                          <td className="px-4 py-3 text-slate-300 font-semibold">{med.medicineName}</td>
-                          <td className="px-4 py-3 text-slate-300">{med.manufacturer}</td>
-                          <td className="px-4 py-3 text-slate-300 font-mono text-xs">{med.batchNo}</td>
-                          <td className="px-4 py-3 text-slate-300">{med.mrp}</td>
-                          <td className="px-4 py-3 text-green-400 font-semibold">{med.rate}</td>
-                          <td className="px-4 py-3 text-slate-300">{med.retailer}</td>
-                          <td className="px-4 py-3 text-blue-400">{med.wholesaler}</td>
-                          <td className="px-4 py-3 text-slate-300">{med.billId}</td>
-                          <td className="px-4 py-3 text-slate-400 text-xs">{med.date}</td>
+                      {filteredTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                          <td className="px-4 py-3 text-blue-400 font-semibold">{tx.billId}</td>
+                          <td className="px-4 py-3 text-slate-300">{tx.date || '-'}</td>
+                          <td className="px-4 py-3 text-slate-300 font-semibold">{tx.productName || '-'}</td>
+                          <td className="px-4 py-3 text-slate-300">{formatNumber(tx.quantity)}</td>
+                          <td className="px-4 py-3 text-slate-300">{tx.retailerName || '-'}</td>
+                          <td className="px-4 py-3 text-blue-400">{tx.wholesalerName || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-slate-400 text-center py-4">No medicines found matching "{searchQuery}"</p>
+                <p className="text-slate-400 text-center py-4">No transactions found matching "{searchQuery}"</p>
               )}
             </div>
           )}
         </div>
 
-        {/* View: Wholesaler Shops */}
-        {view === 'shops' && (
+        {loadError && <div className="mb-6 rounded-lg border border-red-700 bg-red-900/40 p-4 text-red-200">{loadError}</div>}
+
+        {isLoading && (
+          <div className="bg-slate-800 rounded-lg p-10 border border-slate-700 text-center text-slate-300">
+            Loading wholesaler sales from database...
+          </div>
+        )}
+
+        {!isLoading && view === 'shops' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {shops.map((shop) => (
-              <div 
+              <div
                 key={shop.id}
                 onClick={() => handleShopClick(shop)}
                 className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-blue-500 cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-500/20"
@@ -193,7 +227,7 @@ export default function ViewWholesalerSales() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">{shop.name}</h3>
-                    <p className="text-slate-400 text-sm">License: {shop.licenseNo}</p>
+                    <p className="text-slate-400 text-sm">License: {shop.licenseNo || '-'}</p>
                   </div>
                   <span className="text-3xl">🏭</span>
                 </div>
@@ -203,8 +237,8 @@ export default function ViewWholesalerSales() {
                     <p className="text-white font-bold text-lg">{shop.totalBills}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-xs mb-1">Total Sales</p>
-                    <p className="text-green-400 font-bold text-lg">{shop.totalSales}</p>
+                    <p className="text-slate-400 text-xs mb-1">Total Qty Sold</p>
+                    <p className="text-green-400 font-bold text-lg">{formatNumber(shop.totalQuantity)}</p>
                   </div>
                 </div>
                 <div className="mt-4 text-right">
@@ -212,11 +246,16 @@ export default function ViewWholesalerSales() {
                 </div>
               </div>
             ))}
+
+            {shops.length === 0 && (
+              <div className="col-span-full bg-slate-800 rounded-lg p-10 border border-slate-700 text-center text-slate-400">
+                No wholesaler sales found for your district.
+              </div>
+            )}
           </div>
         )}
 
-        {/* View: Bills for Selected Shop */}
-        {view === 'bills' && selectedShop && (
+        {!isLoading && view === 'bills' && selectedShop && (
           <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -225,22 +264,22 @@ export default function ViewWholesalerSales() {
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bill ID</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Retailer</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Items</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Total Amount</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Product</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {billsByShop[selectedShop.id]?.map((bill) => (
-                    <tr key={bill.billId} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                      <td className="px-6 py-4 text-blue-400 font-semibold">{bill.billId}</td>
-                      <td className="px-6 py-4 text-slate-300">{bill.date}</td>
-                      <td className="px-6 py-4 text-slate-300">{bill.retailer}</td>
-                      <td className="px-6 py-4 text-slate-300">{bill.items} items</td>
-                      <td className="px-6 py-4 text-green-400 font-semibold text-lg">{bill.totalAmount}</td>
+                  {selectedShopTransactions.map((tx) => (
+                    <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                      <td className="px-6 py-4 text-blue-400 font-semibold">{tx.billId}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.date || '-'}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.retailerName || '-'}</td>
+                      <td className="px-6 py-4 text-slate-300">{tx.productName || '-'}</td>
+                      <td className="px-6 py-4 text-slate-300">{formatNumber(tx.quantity)}</td>
                       <td className="px-6 py-4">
-                        <button 
-                          onClick={() => handleBillClick(bill)}
+                        <button
+                          onClick={() => handleBillClick(tx)}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors text-sm"
                         >
                           View Details
@@ -254,10 +293,8 @@ export default function ViewWholesalerSales() {
           </div>
         )}
 
-        {/* View: Products for Selected Bill */}
-        {view === 'products' && selectedBill && (
+        {!isLoading && view === 'products' && selectedBill && (
           <div className="space-y-6">
-            {/* Bill Info Card */}
             <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
@@ -266,63 +303,43 @@ export default function ViewWholesalerSales() {
                 </div>
                 <div>
                   <p className="text-slate-400 text-sm mb-1">Date</p>
-                  <p className="text-white font-semibold">{selectedBill.date}</p>
+                  <p className="text-white font-semibold">{selectedBill.date || '-'}</p>
                 </div>
                 <div>
                   <p className="text-slate-400 text-sm mb-1">Retailer</p>
-                  <p className="text-white font-semibold">{selectedBill.retailer}</p>
+                  <p className="text-white font-semibold">{selectedBill.retailerName || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Total Amount</p>
-                  <p className="text-green-400 font-bold text-xl">{selectedBill.totalAmount}</p>
+                  <p className="text-slate-400 text-sm mb-1">Quantity</p>
+                  <p className="text-green-400 font-bold text-xl">{formatNumber(selectedBill.quantity)}</p>
                 </div>
               </div>
             </div>
 
-            {/* Products Table */}
             <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-700">
                     <tr>
-                      <th className="px-4 py-3 text-left text-slate-300">Medicine Name</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Mfg Comp</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Batch No</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Mfg Date</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Exp Date</th>
-                      <th className="px-4 py-3 text-left text-slate-300">MRP</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Rate</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Qty</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Total</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Product Name</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Quantity</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
+                      <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {productsByBill[selectedBill.billId]?.map((product) => (
-                      <tr key={product.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                        <td className="px-4 py-3 text-white font-semibold">{product.medicineName}</td>
-                        <td className="px-4 py-3 text-slate-300">{product.manufacturer}</td>
-                        <td className="px-4 py-3 text-slate-300 font-mono text-xs">{product.batchNo}</td>
-                        <td className="px-4 py-3 text-slate-300 text-xs">{product.manufactureDate}</td>
-                        <td className="px-4 py-3 text-slate-300 text-xs">{product.expiryDate}</td>
-                        <td className="px-4 py-3 text-slate-300">{product.mrp}</td>
-                        <td className="px-4 py-3 text-green-400 font-semibold">{product.rate}</td>
-                        <td className="px-4 py-3 text-slate-300">{product.quantity}</td>
-                        <td className="px-4 py-3 text-blue-400 font-bold">{product.total}</td>
-                      </tr>
-                    ))}
+                    <tr className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
+                      <td className="px-4 py-3 text-white font-semibold">{selectedBill.productName || '-'}</td>
+                      <td className="px-4 py-3 text-slate-300">{formatNumber(selectedBill.quantity)}</td>
+                      <td className="px-4 py-3 text-slate-300">{selectedBill.wholesalerName || '-'}</td>
+                      <td className="px-4 py-3 text-slate-300">{selectedBill.retailerName || '-'}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
         )}
-
-        {/* Export Button */}
-        <div className="mt-6 text-right">
-          <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
-            📥 Export Report
-          </button>
-        </div>
       </div>
     </div>
   )

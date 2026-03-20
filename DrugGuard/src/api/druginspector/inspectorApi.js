@@ -28,3 +28,11 @@ export async function createLicenseByInspector(payload) {
 export async function getInspectorVisibleRetailers(district) {
   return apiRequest(`/api/inspector/districts/${encodeURIComponent(district)}/retailers-visible`)
 }
+
+export async function getInspectorShops(district) {
+  return apiRequest(`/api/inspector/shops?district=${encodeURIComponent(district)}`)
+}
+
+export async function getInspectorDashboardSummary(district) {
+  return apiRequest(`/api/inspector/dashboard-summary?district=${encodeURIComponent(district)}`)
+}

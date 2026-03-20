@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom'
 export default function Navbar({ userRole, onLogout }) {
   const navigate = useNavigate()
 
+  let inspectorDistrict = ''
+  try {
+    const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
+    inspectorDistrict = session.district || ''
+  } catch {
+    inspectorDistrict = ''
+  }
+
   const roleInfo = {
     inspector: { title: 'Drug Inspector', color: 'from-blue-600 to-blue-400' },
     wholesaler: { title: 'Wholesaler', color: 'from-green-600 to-green-400' },
@@ -43,6 +51,9 @@ export default function Navbar({ userRole, onLogout }) {
             <div className="text-right">
               <p className="text-sm font-semibold">User Account</p>
               <p className="text-xs opacity-90">Logged in as {current.title}</p>
+              {userRole === 'inspector' && inspectorDistrict && (
+                <p className="text-xs opacity-90">District: {inspectorDistrict}</p>
+              )}
             </div>
             <button
               onClick={handleLogout}

@@ -1,52 +1,64 @@
+import { useEffect, useState } from 'react'
+import { getInspectorDashboardSummary } from '../api/druginspector/inspectorApi'
+
 export default function DIDashboard() {
-  const addDays = (days) => {
-    const d = new Date()
-    d.setDate(d.getDate() + days)
-    return d.toISOString().split('T')[0]
-  }
+  const [shopExpiryAlerts, setShopExpiryAlerts] = useState([])
+  const [pharmacistExpiryAlerts, setPharmacistExpiryAlerts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
-  const msInDay = 1000 * 60 * 60 * 24
-  const today = new Date()
+  useEffect(() => {
+    let isMounted = true
 
-  // Shop/Firm licenses
-  const shopLicenses = [
-    { id: 1, entity: 'City Pharmacy', licenseNo: 'CHE/RT/2024/56789', expiryDate: addDays(12) },
-    { id: 2, entity: 'Main Street Clinic', licenseNo: 'CHE/RT/2024/56790', expiryDate: addDays(-8) },
-    { id: 3, entity: 'Central Pharmacy', licenseNo: 'CHE/RT/2024/56791', expiryDate: addDays(24) },
-    { id: 4, entity: 'Green Valley Hospital', licenseNo: 'CHE/RT/2024/56792', expiryDate: addDays(-26) },
-    { id: 5, entity: 'Wellness Medico', licenseNo: 'CHE/RT/2024/56793', expiryDate: addDays(70) },
-  ]
+    async function loadDashboardData() {
+      const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
+      const district = session.district || ''
 
-  // Pharmacist/Competent person licenses
-  const pharmacistLicenses = [
-    { id: 1, entity: 'R. Anand (City Pharmacy)', licenseNo: 'PH/TN/2021/10211', expiryDate: addDays(5) },
-    { id: 2, entity: 'S. Priya (Main Street Clinic)', licenseNo: 'PH/TN/2020/09145', expiryDate: addDays(-11) },
-    { id: 3, entity: 'M. Harish (Central Pharmacy)', licenseNo: 'PH/TN/2022/12291', expiryDate: addDays(27) },
-    { id: 4, entity: 'J. Keerthi (Green Valley)', licenseNo: 'PH/TN/2019/07119', expiryDate: addDays(-22) },
-    { id: 5, entity: 'V. Naveen (CarePoint)', licenseNo: 'PH/TN/2023/13018', expiryDate: addDays(63) },
-  ]
+      if (!district) {
+        if (isMounted) {
+          setLoadError('Inspector district not found in session. Please login again.')
+          setShopExpiryAlerts([])
+          setPharmacistExpiryAlerts([])
+          setIsLoading(false)
+        }
+        return
+      }
 
-  const getDaysLeft = (dateString) => {
-    const expiry = new Date(dateString)
-    const diff = expiry.setHours(0, 0, 0, 0) - new Date(today).setHours(0, 0, 0, 0)
-    return Math.ceil(diff / msInDay)
-  }
+      try {
+        if (isMounted) {
+          setIsLoading(true)
+          setLoadError('')
+        }
 
-  // Keep only near-expiry (0 to 30 days) and recently expired (-30 to -1 days)
-  const isInOneMonthWindow = (dateString) => {
-    const daysLeft = getDaysLeft(dateString)
-    return daysLeft <= 30 && daysLeft >= -30
-  }
+        const response = await getInspectorDashboardSummary(district)
 
-  const shopExpiryAlerts = shopLicenses
-    .filter((item) => isInOneMonthWindow(item.expiryDate))
-    .map((item) => ({ ...item, daysLeft: getDaysLeft(item.expiryDate) }))
-    .sort((a, b) => a.daysLeft - b.daysLeft)
+        if (!isMounted) {
+          return
+        }
 
-  const pharmacistExpiryAlerts = pharmacistLicenses
-    .filter((item) => isInOneMonthWindow(item.expiryDate))
-    .map((item) => ({ ...item, daysLeft: getDaysLeft(item.expiryDate) }))
-    .sort((a, b) => a.daysLeft - b.daysLeft)
+        setShopExpiryAlerts(Array.isArray(response.shopExpiryAlerts) ? response.shopExpiryAlerts : [])
+        setPharmacistExpiryAlerts(Array.isArray(response.pharmacistExpiryAlerts) ? response.pharmacistExpiryAlerts : [])
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setLoadError(error.message || 'Failed to load dashboard details from backend')
+        setShopExpiryAlerts([])
+        setPharmacistExpiryAlerts([])
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadDashboardData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const renderExpiryText = (daysLeft) => {
     if (daysLeft < 0) return `Expired ${Math.abs(daysLeft)} days ago`
@@ -62,6 +74,14 @@ export default function DIDashboard() {
           <h1 className="text-4xl font-bold text-white mb-2">Drug Inspector Dashboard</h1>
           <p className="text-slate-400">License expiry monitoring (within 1 month window)</p>
         </div>
+
+        {loadError && <div className="mb-6 rounded-lg border border-red-700 bg-red-900/40 p-4 text-red-200">{loadError}</div>}
+
+        {isLoading && (
+          <div className="mb-6 rounded-lg border border-slate-700 bg-slate-800 p-6 text-slate-300">
+            Loading dashboard details from backend...
+          </div>
+        )}
 
         {/* License Expiry Panels */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

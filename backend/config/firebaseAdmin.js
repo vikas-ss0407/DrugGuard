@@ -16,16 +16,31 @@ function getServiceAccountFromEnv() {
   }
 }
 
+function getStorageBucketName() {
+  if (process.env.FIREBASE_STORAGE_BUCKET) {
+    return process.env.FIREBASE_STORAGE_BUCKET
+  }
+
+  if (process.env.FIREBASE_PROJECT_ID) {
+    return `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`
+  }
+
+  return undefined
+}
+
 if (!admin.apps.length) {
   const serviceAccount = getServiceAccountFromEnv()
+  const storageBucket = getStorageBucketName()
 
   if (serviceAccount) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket
     })
   } else {
     admin.initializeApp({
-      credential: admin.credential.applicationDefault()
+      credential: admin.credential.applicationDefault(),
+      storageBucket
     })
   }
 }
@@ -33,8 +48,18 @@ if (!admin.apps.length) {
 const db = admin.firestore()
 const auth = admin.auth()
 
+function getStorageBucket() {
+  const storageBucketName = getStorageBucketName()
+  if (storageBucketName) {
+    return admin.storage().bucket(storageBucketName)
+  }
+
+  return admin.storage().bucket()
+}
+
 module.exports = {
   admin,
   db,
-  auth
+  auth,
+  getStorageBucket
 }

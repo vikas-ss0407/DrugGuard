@@ -16,3 +16,18 @@ export async function createWholesalerSale(payload) {
     body: JSON.stringify(payload)
   })
 }
+
+export async function getManufacturerMedicines(manufacturer) {
+  const query = manufacturer
+    ? `?manufacturer=${encodeURIComponent(manufacturer)}`
+    : ''
+
+  return apiRequest(`/api/wholesaler/manufacturer-medicines${query}`)
+}
+
+export async function createWholesalerManufacturerPurchase(payload) {
+  return apiRequest('/api/wholesaler/manufacturer-purchases', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}

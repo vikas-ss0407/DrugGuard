@@ -23,7 +23,6 @@ export default function CreateLicense() {
     // Owner Documents
     ownerPanCard: '',
     ownerAadharNumber: '',
-    ownerAadharCardImage: null,
     
     // B. Pharmacist / Competent Person Details
     pharmacistName: '',
@@ -35,11 +34,6 @@ export default function CreateLicense() {
     pharmacistMobile: '',
     pharmacistEmail: '',
     employmentType: '', // Full-time / Part-time
-    appointmentDocument: null,
-    
-    // Pharmacist Documents
-    pharmacistCertificate: null,
-    pharmacistSignatureImage: null,
     
     // C. Shop Infrastructure Details
     totalShopArea: '',
@@ -73,6 +67,7 @@ export default function CreateLicense() {
 
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Generate License Number based on District and Year
   const generateLicenseNumber = () => {
@@ -136,8 +131,8 @@ Email                  : ${formData.email}
 
 Documents Attached:
   ✓ PAN Card Copy
-  ✓ Aadhaar Card Image
-  ✓ Identity Proof
+  ✓ Aadhaar Number Verified
+  ✓ Identity Details Verified
 
 ───────────────────────────────────────────────────────────────────────────────────
 
@@ -154,9 +149,8 @@ Mobile Number          : ${formData.pharmacistMobile}
 Email                  : ${formData.pharmacistEmail}
 
 Documents Attached:
-  ✓ Pharmacist Certificate (${formData.qualification})
-  ✓ Signature Image
-  ✓ Appointment Letter
+  ✓ Qualification (${formData.qualification}) Verified
+  ✓ Employment Details Verified
   ✓ Registration Certificate from State Pharmacy Council
 
 ───────────────────────────────────────────────────────────────────────────────────
@@ -197,7 +191,7 @@ Refrigerator/Cold Storage:
 ✓ Shop Infrastructure Inspected
 ✓ Storage Facilities Approved
 ✓ Equipment Details Recorded
-✓ All Required Documents Attached
+✓ Required Information Captured
 ✓ Compliance Standards Met
 
 ───────────────────────────────────────────────────────────────────────────────────
@@ -226,13 +220,12 @@ Renewal Date           : ${new Date(new Date().setFullYear(new Date().getFullYea
 📄 DOCUMENTS ATTACHED WITH LICENSE
 ───────────────────────────────────────────────────────────────────────────────────
 ✓ PAN Card of Owner
-✓ Aadhaar Card Image of Owner
-✓ Pharmacist Degree Certificate
-✓ Pharmacist Signature Image
-✓ Pharmacist Appointment Letter
+✓ Aadhaar Number of Owner
+✓ Pharmacist Qualification Details
+✓ Pharmacist Employment Details
 ✓ Registration Certificate from State Pharmacy Council
-✓ Shop Infrastructure Photos
-✓ Equipment Details & Photos
+✓ Shop Infrastructure Details
+✓ Equipment Details
 ✓ Permission from Local Authorities
 ✓ Premises Inspection Report
 
@@ -263,14 +256,6 @@ System Version: 1.0
     }))
   }
 
-  const handleFileChange = (e) => {
-    const { name, files } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: files[0]
-    }))
-  }
-
   const validateStep = () => {
     const newErrors = {}
     
@@ -291,7 +276,6 @@ System Version: 1.0
       if (!formData.email) newErrors.email = 'Email is required'
       if (!formData.ownerPanCard) newErrors.ownerPanCard = 'PAN Card number is required'
       if (!formData.ownerAadharNumber) newErrors.ownerAadharNumber = 'Aadhaar number is required'
-      if (!formData.ownerAadharCardImage) newErrors.ownerAadharCardImage = 'Aadhaar card image is required'
     } else if (step === 2) {
       if (!formData.pharmacistName) newErrors.pharmacistName = 'Pharmacist name is required'
       if (!formData.registrationId) newErrors.registrationId = 'Registration ID is required'
@@ -302,8 +286,6 @@ System Version: 1.0
       if (!formData.pharmacistMobile) newErrors.pharmacistMobile = 'Mobile number is required'
       if (!formData.pharmacistEmail) newErrors.pharmacistEmail = 'Email is required'
       if (!formData.employmentType) newErrors.employmentType = 'Employment type is required'
-      if (!formData.pharmacistCertificate) newErrors.pharmacistCertificate = 'Pharmacist certificate is required'
-      if (!formData.pharmacistSignatureImage) newErrors.pharmacistSignatureImage = 'Pharmacist signature image is required'
     } else if (step === 3) {
       if (!formData.totalShopArea) newErrors.totalShopArea = 'Total shop area is required'
       if (!formData.shopLength) newErrors.shopLength = 'Shop length is required'
@@ -344,6 +326,7 @@ System Version: 1.0
 
     if (Object.keys(newErrors).length === 0) {
       setSubmitError('')
+      setIsSubmitting(true)
       const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
 
       // Generate license number and password
@@ -359,61 +342,70 @@ System Version: 1.0
       }
 
       try {
-        await createLicenseByInspector({
+        console.log('📤 Submitting text-only license creation:', { licenseNumber })
+
+        const result = await createLicenseByInspector({
           ...finalData,
           inspectorEmail: session.email || '',
           inspectorDistrict: session.district || formData.district,
           loginUsername: formData.loginEmail,
           loginPassword: formData.loginPassword
         })
+
+        console.log('✅ License created successfully:', result)
+
+        // Download license as text file
+        const element = document.createElement('a')
+        const file = new Blob([licenseDocument], { type: 'text/plain' })
+        element.href = URL.createObjectURL(file)
+        element.download = `LICENSE_${licenseNumber.replace(/\//g, '_')}_${new Date().getTime()}.txt`
+        document.body.appendChild(element)
+        element.click()
+        document.body.removeChild(element)
+
+        // Show success message with credentials
+        alert(
+          `✅ LICENSE GENERATED SUCCESSFULLY!\n\n` +
+          `License Number: ${licenseNumber}\n` +
+          `Pharmacy: ${formData.shopFirmName}\n` +
+          `Owner: ${formData.fullName}\n` +
+          `Pharmacist: ${formData.pharmacistName}\n\n` +
+          `LOGIN CREDENTIALS:\n` +
+          `Username: ${formData.loginEmail}\n` +
+          `Temporary Password: ${formData.loginPassword}\n\n` +
+          `License Document has been downloaded!\n` +
+          `Please save all documents securely.\n` +
+          `License is valid for 5 years.`
+        )
+
+        console.log('License Data:', finalData)
+
+        // Reset form
+        setFormData({
+          fullName: '', dateOfBirth: '', licenseType: '', shopFirmName: '', ownershipType: '',
+          doorNo: '', area: '', city: '', post: '', district: '', state: '', pinCode: '',
+          mobileNumber: '', email: '', ownerPanCard: '', ownerAadharNumber: '',
+          pharmacistName: '', registrationId: '', qualification: '',
+          yearsOfExperience: '', pharmacistDateOfBirth: '', aadhaarNumber: '',
+          pharmacistMobile: '', pharmacistEmail: '', employmentType: '',
+          totalShopArea: '', shopLength: '', shopBreadth: '', storageAreaAvailable: false,
+          separateScheduleDrugStorage: false, powerBackupAvailable: false, acAvailable: false,
+          acBrand: '', acModel: '', acCapacity: '', refrigeratorAvailable: false,
+          refrigeratorBrand: '', refrigeratorModel: '', refrigeratorCapacity: '',
+          refrigeratorTempRange: '', loginEmail: '', loginPassword: '', confirmPassword: '',
+          licenseNumber: '', generatedPassword: '', licenseCreationDate: new Date().toLocaleDateString()
+        })
+        setStep(1)
       } catch (error) {
-        setSubmitError(error.message || 'Failed to create license in backend')
-        return
+        console.error('❌ License creation failed:', {
+          message: error.message,
+          stack: error.stack,
+          error
+        })
+        setSubmitError(error.message || 'Failed to create license in backend. Check console for details.')
+      } finally {
+        setIsSubmitting(false)
       }
-
-      // Download license as text file
-      const element = document.createElement('a')
-      const file = new Blob([licenseDocument], { type: 'text/plain' })
-      element.href = URL.createObjectURL(file)
-      element.download = `LICENSE_${licenseNumber.replace(/\//g, '_')}_${new Date().getTime()}.txt`
-      document.body.appendChild(element)
-      element.click()
-      document.body.removeChild(element)
-
-      // Show success message with credentials
-      alert(
-        `✅ LICENSE GENERATED SUCCESSFULLY!\n\n` +
-        `License Number: ${licenseNumber}\n` +
-        `Pharmacy: ${formData.shopFirmName}\n` +
-        `Owner: ${formData.fullName}\n` +
-        `Pharmacist: ${formData.pharmacistName}\n\n` +
-        `LOGIN CREDENTIALS:\n` +
-        `Username: ${formData.loginEmail}\n` +
-        `Temporary Password: ${formData.loginPassword}\n\n` +
-        `License Document has been downloaded!\n` +
-        `Please save all documents securely.\n` +
-        `License is valid for 5 years.`
-      )
-
-      console.log('License Data:', finalData)
-
-      // Reset form
-      setFormData({
-        fullName: '', dateOfBirth: '', licenseType: '', shopFirmName: '', ownershipType: '',
-        doorNo: '', area: '', city: '', post: '', district: '', state: '', pinCode: '',
-        mobileNumber: '', email: '', ownerPanCard: '', ownerAadharNumber: '',
-        ownerAadharCardImage: null, pharmacistName: '', registrationId: '', qualification: '',
-        yearsOfExperience: '', pharmacistDateOfBirth: '', aadhaarNumber: '',
-        pharmacistMobile: '', pharmacistEmail: '', employmentType: '', appointmentDocument: null,
-        pharmacistCertificate: null, pharmacistSignatureImage: null,
-        totalShopArea: '', shopLength: '', shopBreadth: '', storageAreaAvailable: false,
-        separateScheduleDrugStorage: false, powerBackupAvailable: false, acAvailable: false,
-        acBrand: '', acModel: '', acCapacity: '', refrigeratorAvailable: false,
-        refrigeratorBrand: '', refrigeratorModel: '', refrigeratorCapacity: '',
-        refrigeratorTempRange: '', loginEmail: '', loginPassword: '', confirmPassword: '',
-        licenseNumber: '', generatedPassword: '', licenseCreationDate: new Date().toLocaleDateString()
-      })
-      setStep(1)
     } else {
       setErrors(newErrors)
     }
@@ -641,18 +633,6 @@ System Version: 1.0
                     {errors.ownerAadharNumber && <p className="text-red-400 text-sm mt-1">{errors.ownerAadharNumber}</p>}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-slate-300 mb-2">Aadhaar Card Image/Copy *</label>
-                    <input
-                      type="file"
-                      name="ownerAadharCardImage"
-                      onChange={handleFileChange}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {errors.ownerAadharCardImage && <p className="text-red-400 text-sm mt-1">{errors.ownerAadharCardImage}</p>}
-                    <p className="text-slate-500 text-xs mt-1">Upload clear image/scan (PDF, JPG, PNG - Max 5MB)</p>
-                  </div>
                 </div>
               </div>
 
@@ -814,43 +794,6 @@ System Version: 1.0
                   {errors.employmentType && <p className="text-red-400 text-sm mt-1">{errors.employmentType}</p>}
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-slate-300 mb-2">Pharmacist Degree Certificate ({formData.qualification}) *</label>
-                  <input
-                    type="file"
-                    name="pharmacistCertificate"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.pharmacistCertificate && <p className="text-red-400 text-sm mt-1">{errors.pharmacistCertificate}</p>}
-                  <p className="text-slate-500 text-xs mt-1">Upload certificate/degree document (PDF, JPG, PNG - Max 5MB)</p>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-slate-300 mb-2">Pharmacist Signature Image *</label>
-                  <input
-                    type="file"
-                    name="pharmacistSignatureImage"
-                    onChange={handleFileChange}
-                    accept=".jpg,.jpeg,.png"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.pharmacistSignatureImage && <p className="text-red-400 text-sm mt-1">{errors.pharmacistSignatureImage}</p>}
-                  <p className="text-slate-500 text-xs mt-1">Upload high-quality signature image (JPG, PNG - Max 5MB)</p>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-slate-300 mb-2">Appointment Letter / Consent Document</label>
-                  <input
-                    type="file"
-                    name="appointmentDocument"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-slate-500 text-xs mt-1">Accepted formats: PDF, JPG, PNG (Max 5MB)</p>
-                </div>
               </div>
             </div>
           )}
@@ -1116,33 +1059,49 @@ System Version: 1.0
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
-            {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
-              >
-                ← Previous
-              </button>
+            {submitError && (
+              <div className="w-full mb-4 p-3 bg-red-900 border border-red-700 rounded text-red-200">
+                ❌ {submitError}
+              </div>
             )}
-            
-            {step < 5 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="ml-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
-              >
-                Next →
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="ml-auto px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors font-semibold"
-              >
-                Generate License & Create Account
-              </button>
-            )}
+            <div className="flex justify-between w-full mt-4">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50"
+                >
+                  ← Previous
+                </button>
+              )}
+              
+              {step < 5 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isSubmitting}
+                  className="ml-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                >
+                  Next →
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="ml-auto px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="inline-block animate-spin">⏳</span>
+                      Processing...
+                    </>
+                  ) : (
+                    'Generate License & Create Account'
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </div>
