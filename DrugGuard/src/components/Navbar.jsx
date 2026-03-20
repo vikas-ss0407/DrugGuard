@@ -4,11 +4,19 @@ export default function Navbar({ userRole, onLogout }) {
   const navigate = useNavigate()
 
   let inspectorDistrict = ''
+  let shopName = ''
   try {
     const session = JSON.parse(localStorage.getItem('dg_user') || '{}')
     inspectorDistrict = session.district || ''
+    shopName =
+      session.shopFirmName ||
+      session.companyName ||
+      session.username ||
+      session.email ||
+      ''
   } catch {
     inspectorDistrict = ''
+    shopName = ''
   }
 
   const roleInfo = {
@@ -51,6 +59,9 @@ export default function Navbar({ userRole, onLogout }) {
             <div className="text-right">
               <p className="text-sm font-semibold">User Account</p>
               <p className="text-xs opacity-90">Logged in as {current.title}</p>
+              {(userRole === 'wholesaler' || userRole === 'retailer') && shopName && (
+                <p className="text-xs opacity-90">Shop: {shopName}</p>
+              )}
               {userRole === 'inspector' && inspectorDistrict && (
                 <p className="text-xs opacity-90">District: {inspectorDistrict}</p>
               )}

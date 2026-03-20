@@ -1,35 +1,73 @@
-export default function RetailerProfile() {
-  const profile = {
-    storeName: 'City Pharmacy',
-    registrationNumber: 'RTL-REG-2021-005',
-    email: 'contact@citypharmacy.com',
-    phone: '+91-9876543210',
-    address: '123 Main Street, Medical Plaza, City 400001',
-    shopArea: '2000 Sq. Ft.',
-    temperature: '15-25°C',
-    humidity: '40-60%'
-  }
+import { useEffect, useState } from 'react'
+import { getRetailerProfile } from '../api/retailer/retailerApi'
 
-  const pharmacist = {
-    name: 'Dr. Priya Sharma',
-    license: 'PH-LIC-2020-0056',
-    email: 'priya@citypharmacy.com',
-    registeredDate: '2020-05-20'
-  }
-
-  const license = {
-    status: 'Valid',
-    issueDate: '2023-01-10',
-    expiryDate: '2025-12-31',
+const EMPTY_PROFILE = {
+  storeName: '-',
+  registrationNumber: '-',
+  email: '-',
+  phone: '-',
+  address: '-',
+  shopArea: '-',
+  temperature: '-',
+  humidity: '-',
+  pharmacist: {
+    name: '-',
+    license: '-',
+    email: '-',
+    registeredDate: '-'
+  },
+  license: {
+    status: 'Not Available',
+    issueDate: '-',
+    expiryDate: '-',
     issuedBy: 'Ministry of Health & Family Welfare'
-  }
+  },
+  documents: []
+}
 
-  const documents = [
-    { name: 'GST Certificate', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Business License', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Pharmacist License', uploadedDate: '2023-01-10', status: 'Verified' },
-    { name: 'Shop Photos', uploadedDate: '2023-01-10', status: 'Verified' }
-  ]
+export default function RetailerProfile() {
+  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState(EMPTY_PROFILE)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadProfile() {
+      try {
+        setLoading(true)
+
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const retailerId = user?.id || user?.uid
+        if (!retailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        const response = await getRetailerProfile(retailerId)
+        if (!active) return
+
+        setProfile({ ...EMPTY_PROFILE, ...(response.profile || {}) })
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load profile')
+          setProfile(EMPTY_PROFILE)
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const pharmacist = profile.pharmacist || EMPTY_PROFILE.pharmacist
+  const license = profile.license || EMPTY_PROFILE.license
+  const documents = Array.isArray(profile.documents) ? profile.documents : []
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -39,6 +77,12 @@ export default function RetailerProfile() {
           <h1 className="text-3xl font-bold text-white mb-2">Profile & License Details</h1>
           <p className="text-slate-400">Your store information and documentation</p>
         </div>
+
+        {loading && (
+          <div className="mb-6 rounded-lg border border-slate-700 bg-slate-800 p-4 text-slate-300">
+            Loading profile...
+          </div>
+        )}
 
         {/* Store Info Card */}
         <div className="bg-slate-800 rounded-lg p-8 border border-slate-700 shadow-lg mb-6">
@@ -139,6 +183,11 @@ export default function RetailerProfile() {
         <div className="bg-slate-800 rounded-lg p-8 border border-slate-700 shadow-lg">
           <h2 className="text-2xl font-bold text-white mb-6">Uploaded Documents</h2>
           <div className="space-y-3">
+            {documents.length === 0 && (
+              <div className="rounded-lg bg-slate-700 p-4 text-slate-300">
+                No documents available.
+              </div>
+            )}
             {documents.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between bg-slate-700 rounded-lg p-4">
                 <div className="flex items-center gap-4">

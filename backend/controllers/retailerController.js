@@ -17,10 +17,84 @@ function buildRetailerCustomerBillNo() {
   return `CST-${Date.now()}`
 }
 
+function parseDateSafe(value) {
+  if (!value) {
+    return null
+  }
+
+  const direct = new Date(value)
+  if (!Number.isNaN(direct.getTime())) {
+    return direct
+  }
+
+  const normalized = String(value).trim()
+  const match = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) {
+    return null
+  }
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+
+  const parsed = new Date(year, month - 1, day)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return parsed
+}
+
+function deriveLicenseExpiryDate(licenseData, retailerShop) {
+  if (retailerShop.licenseExpiryDate) {
+    return retailerShop.licenseExpiryDate
+  }
+
+  if (licenseData?.expiryDate) {
+    return licenseData.expiryDate
+  }
+
+  const issueDate =
+    parseDateSafe(licenseData?.licenseCreationDate) ||
+    parseDateSafe(retailerShop.licenseIssueDate) ||
+    parseDateSafe(licenseData?.createdAt) ||
+    parseDateSafe(retailerShop.createdAt)
+
+  if (!issueDate) {
+    return '-'
+  }
+
+  const expiry = new Date(issueDate)
+  expiry.setFullYear(expiry.getFullYear() + 5)
+  return expiry.toISOString().slice(0, 10)
+}
+
 async function ensureShopExists(collectionName, id) {
   if (!id) return null
   const doc = await db.collection(collectionName).doc(String(id)).get()
   return doc.exists ? { id: doc.id, ...doc.data() } : null
+}
+
+async function resolveRetailerShop(identifier) {
+  if (!identifier) return null
+
+  const byId = await ensureShopExists(collections.RETAILERS, identifier)
+  if (byId) {
+    return byId
+  }
+
+  const byUsernameSnapshot = await db
+    .collection(collections.RETAILERS)
+    .where('username', '==', String(identifier))
+    .limit(1)
+    .get()
+
+  if (!byUsernameSnapshot.empty) {
+    const doc = byUsernameSnapshot.docs[0]
+    return { id: doc.id, ...doc.data() }
+  }
+
+  return null
 }
 
 function buildWholesalerLabel(wholesaler) {
@@ -542,13 +616,577 @@ async function getRetailerPurchaseHistory(req, res) {
   }
 }
 
+async function getRetailerPendingStockItems(req, res) {
+  try {
+    const { retailerId } = req.params
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const snapshot = await db
+      .collection(collections.TRANSACTIONS)
+      .where('buyerRole', '==', 'retailer')
+      .where('buyerId', '==', retailerId)
+      .get()
+
+    const pendingItems = []
+
+    snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((tx) => tx.orderType === 'retailer_purchase_order')
+      .forEach((tx) => {
+        const pendingIds = Array.isArray(tx.pendingMedicineIds) ? tx.pendingMedicineIds.map(String) : []
+        if (pendingIds.length === 0) return
+
+        const items = Array.isArray(tx.items) ? tx.items : []
+        items.forEach((item) => {
+          const itemId = String(item.id || item.medicineName || '')
+          if (!pendingIds.includes(itemId)) return
+
+          pendingItems.push({
+            id: `${tx.id}-${itemId}`,
+            orderId: tx.id,
+            medicineId: itemId,
+            billNo: tx.billNo || tx.id,
+            wholesaler: tx.sellerName || 'Unknown Wholesaler',
+            medicine: item.medicineName || '-',
+            batch: item.batch || '-',
+            quantity: Number(item.quantity || 0),
+            price: Number(item.rate || 0),
+            mrp: Number(item.mrp || 0),
+            expiry: item.expiryDate || '-',
+            deliveredDate: tx.deliveredDate || toIsoDate(tx.createdAt),
+            reason: 'Not received in delivery',
+            followUpRequested: Boolean(tx.pendingFollowUp?.[itemId]),
+            followUpRequestedAt: tx.pendingFollowUp?.[itemId]?.requestedAt || null
+          })
+        })
+      })
+
+    pendingItems.sort((a, b) => String(b.deliveredDate || '').localeCompare(String(a.deliveredDate || '')))
+
+    return res.json({ retailerId, pendingItems })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function createRetailerPendingStockFollowUp(req, res) {
+  try {
+    const { retailerId, orderId } = req.params
+    const { medicineId, note } = req.body
+
+    if (!medicineId) {
+      return res.status(400).json({ message: 'medicineId is required' })
+    }
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const ref = db.collection(collections.TRANSACTIONS).doc(String(orderId))
+    const doc = await ref.get()
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Order not found' })
+    }
+
+    const order = doc.data()
+    if (order.buyerRole !== 'retailer' || String(order.buyerId) !== String(retailerId)) {
+      return res.status(403).json({ message: 'You are not allowed to update this order' })
+    }
+
+    const pendingIds = Array.isArray(order.pendingMedicineIds) ? order.pendingMedicineIds.map(String) : []
+    if (!pendingIds.includes(String(medicineId))) {
+      return res.status(400).json({ message: 'medicineId is not currently pending in this order' })
+    }
+
+    const nowIso = new Date().toISOString()
+    const pendingFollowUp = {
+      ...(order.pendingFollowUp || {}),
+      [String(medicineId)]: {
+        requestedAt: nowIso,
+        note: note || ''
+      }
+    }
+
+    await ref.update({
+      pendingFollowUp,
+      updatedAt: nowIso
+    })
+
+    return res.json({
+      message: 'Follow-up request submitted',
+      orderId,
+      medicineId: String(medicineId)
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function markRetailerPendingStockReceived(req, res) {
+  try {
+    const { retailerId, orderId } = req.params
+    const { medicineId } = req.body
+
+    if (!medicineId) {
+      return res.status(400).json({ message: 'medicineId is required' })
+    }
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const ref = db.collection(collections.TRANSACTIONS).doc(String(orderId))
+    const doc = await ref.get()
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Order not found' })
+    }
+
+    const order = doc.data()
+    if (order.buyerRole !== 'retailer' || String(order.buyerId) !== String(retailerId)) {
+      return res.status(403).json({ message: 'You are not allowed to update this order' })
+    }
+
+    const pendingIds = Array.isArray(order.pendingMedicineIds) ? order.pendingMedicineIds.map(String) : []
+    if (!pendingIds.includes(String(medicineId))) {
+      return res.status(400).json({ message: 'medicineId is not currently pending in this order' })
+    }
+
+    const items = Array.isArray(order.items) ? order.items : []
+    const receivedItem = items.find((item) => String(item.id || item.medicineName || '') === String(medicineId))
+    if (!receivedItem) {
+      return res.status(404).json({ message: 'Pending medicine item not found in order' })
+    }
+
+    const nowIso = new Date().toISOString()
+    const medicineName = receivedItem.medicineName || ''
+    const batch = receivedItem.batch || ''
+    const quantity = Number(receivedItem.quantity || 0)
+
+    if (medicineName && quantity > 0) {
+      const existingSnapshot = await db
+        .collection(collections.RETAILER_STOCK)
+        .where('retailerId', '==', retailerId)
+        .where('medicineName', '==', medicineName)
+        .where('batch', '==', batch)
+        .limit(1)
+        .get()
+
+      if (!existingSnapshot.empty) {
+        const existingDoc = existingSnapshot.docs[0]
+        const existingQty = Number(existingDoc.data().quantity || 0)
+        await existingDoc.ref.update({
+          quantity: existingQty + quantity,
+          rate: Number(receivedItem.rate || 0),
+          mrp: Number(receivedItem.mrp || 0),
+          manufactureDate: receivedItem.manufactureDate || null,
+          expiryDate: receivedItem.expiryDate || null,
+          updatedAt: nowIso
+        })
+      } else {
+        await db.collection(collections.RETAILER_STOCK).add({
+          retailerId,
+          medicineName,
+          batch,
+          quantity,
+          rate: Number(receivedItem.rate || 0),
+          mrp: Number(receivedItem.mrp || 0),
+          manufactureDate: receivedItem.manufactureDate || null,
+          expiryDate: receivedItem.expiryDate || null,
+          sourceOrderId: orderId,
+          createdAt: nowIso,
+          updatedAt: nowIso
+        })
+      }
+    }
+
+    const nextPendingIds = pendingIds.filter((id) => id !== String(medicineId))
+    const pendingFollowUp = { ...(order.pendingFollowUp || {}) }
+    delete pendingFollowUp[String(medicineId)]
+
+    await ref.update({
+      pendingMedicineIds: nextPendingIds,
+      pendingFollowUp,
+      updatedAt: nowIso
+    })
+
+    return res.json({
+      message: 'Pending stock marked as received',
+      orderId,
+      medicineId: String(medicineId),
+      remainingPendingCount: nextPendingIds.length
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getRetailerSalesHistory(req, res) {
+  try {
+    const { retailerId } = req.params
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const snapshot = await db
+      .collection(collections.TRANSACTIONS)
+      .where('sellerRole', '==', 'retailer')
+      .where('sellerId', '==', retailerId)
+      .get()
+
+    const sales = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((tx) => tx.orderType === 'retailer_customer_sale')
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .map((tx) => ({
+        id: tx.id,
+        billNo: tx.billNo || tx.id,
+        customerName: tx.customerName || tx.buyerName || 'Walk-in Customer',
+        doctorName: tx.doctorName || '',
+        date: tx.createdAt ? String(tx.createdAt).slice(0, 10) : '',
+        createdAt: tx.createdAt || '',
+        totalAmount: Number(tx.totalAmount || 0),
+        orderStatus: tx.orderStatus || 'completed',
+        items: Array.isArray(tx.items)
+          ? tx.items.map((item, index) => ({
+              id: String(item.stockId || item.medicineId || `${item.medicineName || 'item'}-${index}`),
+              medicineName: item.medicineName || '-',
+              batch: item.batch || '-',
+              quantity: Number(item.quantity || 0),
+              packaging: item.packaging || '',
+              company: item.company || '',
+              expiryDate: item.expiryDate || null,
+              rate: Number(item.rate || 0),
+              amount: Number(item.amount || Number(item.mrp || item.rate || 0) * Number(item.quantity || 0))
+            }))
+          : []
+      }))
+
+    return res.json({ retailerId, sales })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getRetailerReturnProductBills(req, res) {
+  try {
+    const { retailerId } = req.params
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    const snapshot = await db
+      .collection(collections.TRANSACTIONS)
+      .where('buyerRole', '==', 'retailer')
+      .where('buyerId', '==', retailerId)
+      .get()
+
+    const bills = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((tx) => tx.orderType === 'retailer_purchase_order')
+      .filter((tx) => tx.orderStatus === 'approved')
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .map((tx) => ({
+        id: tx.id,
+        billNo: tx.billNo || tx.id,
+        date: tx.deliveredDate || toIsoDate(tx.createdAt),
+        wholesalerId: tx.sellerId || '',
+        wholesalerName: tx.sellerName || 'Unknown Wholesaler',
+        products: Array.isArray(tx.items)
+          ? tx.items.map((item, index) => ({
+              id: String(item.id || item.medicineId || `${item.medicineName || 'item'}-${index}`),
+              medicineId: String(item.medicineId || item.id || ''),
+              name: item.medicineName || '-',
+              batch: item.batch || '-',
+              quantity: Number(item.quantity || 0),
+              packaging: item.packType || 'Unit',
+              mrp: Number(item.mrp || 0),
+              rate: Number(item.rate || 0),
+              manufactureDate: item.manufactureDate || null,
+              expiryDate: item.expiryDate || null,
+              isNarcotic: Boolean(item.isNarcotic)
+            }))
+          : []
+      }))
+
+    return res.json({ retailerId, bills })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function createRetailerReturnRequest(req, res) {
+  try {
+    const { retailerId } = req.params
+    const {
+      orderId,
+      billNo,
+      wholesalerId,
+      reason,
+      returnType,
+      notes,
+      items
+    } = req.body
+
+    if (!reason || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'reason and items are required' })
+    }
+
+    const retailerShop = await ensureShopExists(collections.RETAILERS, retailerId)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    let orderRef = null
+    let order = null
+
+    if (orderId) {
+      orderRef = db.collection(collections.TRANSACTIONS).doc(String(orderId))
+      const doc = await orderRef.get()
+      if (!doc.exists) {
+        return res.status(404).json({ message: 'Order not found' })
+      }
+      order = doc.data()
+    } else if (billNo) {
+      const snapshot = await db
+        .collection(collections.TRANSACTIONS)
+        .where('buyerRole', '==', 'retailer')
+        .where('buyerId', '==', retailerId)
+        .where('billNo', '==', String(billNo))
+        .limit(1)
+        .get()
+
+      if (snapshot.empty) {
+        return res.status(404).json({ message: 'Order not found for billNo' })
+      }
+
+      orderRef = snapshot.docs[0].ref
+      order = snapshot.docs[0].data()
+    } else {
+      return res.status(400).json({ message: 'orderId or billNo is required' })
+    }
+
+    if (order.buyerRole !== 'retailer' || String(order.buyerId) !== String(retailerId)) {
+      return res.status(403).json({ message: 'You are not allowed to create return for this order' })
+    }
+
+    const resolvedWholesalerId = wholesalerId || order.sellerId
+    if (!resolvedWholesalerId) {
+      return res.status(400).json({ message: 'wholesalerId is missing for this order' })
+    }
+
+    const wholesalerShop = await ensureShopExists(collections.WHOLESALERS, resolvedWholesalerId)
+    if (!wholesalerShop) {
+      return res.status(404).json({ message: 'Wholesaler shop not found' })
+    }
+
+    const orderItems = Array.isArray(order.items) ? order.items : []
+    const nowIso = new Date().toISOString()
+    const requestGroupId = `RRG-${Date.now()}`
+    const requestIds = []
+
+    for (const item of items) {
+      const requestQty = Number(item.quantity)
+      if (!item.medicineName || !Number.isFinite(requestQty) || requestQty <= 0) {
+        return res.status(400).json({ message: 'Each return item must include medicineName and valid quantity' })
+      }
+
+      const matchedOrderItem = orderItems.find((orderItem) => (
+        String(orderItem.medicineName || '').toLowerCase() === String(item.medicineName || '').toLowerCase() &&
+        String(orderItem.batch || '-') === String(item.batch || '-')
+      ))
+
+      if (!matchedOrderItem) {
+        return res.status(400).json({ message: `Medicine not found in order: ${item.medicineName}` })
+      }
+
+      const maxQty = Number(matchedOrderItem.quantity || 0)
+      if (requestQty > maxQty) {
+        return res.status(400).json({
+          message: `Return quantity exceeds purchased quantity for ${item.medicineName}. Max: ${maxQty}`
+        })
+      }
+
+      const returnRequest = {
+        billNo: order.billNo || orderRef.id,
+        wholesalerId: wholesalerShop.id,
+        wholesalerName: wholesalerShop.shopFirmName || wholesalerShop.username || '',
+        retailerId: retailerShop.id,
+        retailerName: retailerShop.shopFirmName || retailerShop.username || '',
+        medicineName: matchedOrderItem.medicineName || item.medicineName,
+        batch: matchedOrderItem.batch || item.batch || '-',
+        quantity: requestQty,
+        reason,
+        returnType: returnType || 'other',
+        status: 'Pending',
+        refundAmount: 0,
+        approvedAt: null,
+        rejectedAt: null,
+        requestGroupId,
+        sourceOrderId: orderRef.id,
+        notes: notes || '',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }
+
+      const ref = await db.collection(collections.RETURN_REQUESTS).add(returnRequest)
+      requestIds.push(ref.id)
+    }
+
+    return res.status(201).json({
+      message: 'Return request submitted',
+      requestGroupId,
+      requestCount: requestIds.length,
+      requestIds
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+async function getRetailerProfile(req, res) {
+  try {
+    const retailerIdentifier = req.params.retailerId
+
+    const retailerShop = await resolveRetailerShop(retailerIdentifier)
+    if (!retailerShop) {
+      return res.status(404).json({ message: 'Retailer shop not found' })
+    }
+
+    let licenseData = null
+    if (retailerShop.licenseId) {
+      const licenseDoc = await db.collection(collections.LICENSES).doc(String(retailerShop.licenseId)).get()
+      if (licenseDoc.exists) {
+        licenseData = licenseDoc.data()
+      }
+    }
+
+    if (!licenseData && retailerShop.licenseNumber) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('licenseNumber', '==', String(retailerShop.licenseNumber))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && retailerShop.username) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('credentials.username', '==', String(retailerShop.username))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && retailerShop.email) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('credentials.email', '==', String(retailerShop.email))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    if (!licenseData && retailerShop.shopFirmName) {
+      const licenseSnapshot = await db
+        .collection(collections.LICENSES)
+        .where('establishment.shopFirmName', '==', String(retailerShop.shopFirmName))
+        .limit(1)
+        .get()
+      if (!licenseSnapshot.empty) {
+        licenseData = licenseSnapshot.docs[0].data()
+      }
+    }
+
+    const establishment = licenseData?.establishment || {}
+    const establishmentAddress = establishment.address || {}
+    const establishmentContact = establishment.contact || {}
+    const pharmacist = licenseData?.pharmacist || {}
+    const infrastructure = licenseData?.infrastructure || {}
+    const refrigerator = licenseData?.equipment?.refrigerator || {}
+    const humidityValue =
+      retailerShop.humidity ||
+      retailerShop.humidityRange ||
+      infrastructure.humidityRange ||
+      refrigerator.humidityRange ||
+      '-'
+
+    const profile = {
+      id: retailerShop.id,
+      username: retailerShop.username || '',
+      storeName: retailerShop.shopFirmName || establishment.shopFirmName || 'Unknown Store',
+      registrationNumber: licenseData?.licenseNumber || retailerShop.licenseNumber || '-',
+      email: retailerShop.email || establishmentContact.email || '-',
+      phone: retailerShop.mobileNumber || retailerShop.mobileNo || retailerShop.phone || establishmentContact.mobileNumber || '-',
+      address: ([
+        establishmentAddress.doorNo,
+        establishmentAddress.area,
+        establishmentAddress.city,
+        establishmentAddress.district || retailerShop.district,
+        retailerShop.address
+      ]
+        .map((part) => String(part || '').replace(/^\s*,\s*/, '').trim())
+        .filter(Boolean)
+        .join(', ') || '-'),
+      shopArea: infrastructure.totalShopArea ? `${infrastructure.totalShopArea} Sq. Ft.` : '-',
+      temperature: refrigerator.temperatureRange || retailerShop.temperature || '-',
+      humidity: humidityValue,
+      pharmacist: {
+        name: pharmacist.name || '-',
+        license: pharmacist.registrationId || '-',
+        email: pharmacist.email || '-',
+        registeredDate: pharmacist.dateOfBirth || '-'
+      },
+      license: {
+        status: licenseData?.status || retailerShop.licenseStatus || 'Not Available',
+        issueDate: licenseData?.licenseCreationDate || retailerShop.licenseIssueDate || '-',
+        expiryDate: deriveLicenseExpiryDate(licenseData, retailerShop),
+        issuedBy: 'Ministry of Health & Family Welfare'
+      },
+      documents: [
+        { name: 'GST Certificate', uploadedDate: retailerShop.createdAt ? String(retailerShop.createdAt).slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Business License', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Pharmacist License', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' },
+        { name: 'Shop Photos', uploadedDate: licenseData?.createdAt ? String(licenseData.createdAt).slice(0, 10) : '-', status: 'Verified' }
+      ]
+    }
+
+    return res.json({ profile })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
 module.exports = {
   getRetailerWholesalers,
   getRetailerWholesalerCatalog,
   getRetailerSellCatalog,
   createRetailerCustomerSale,
+  getRetailerPendingStockItems,
+  createRetailerPendingStockFollowUp,
+  markRetailerPendingStockReceived,
+  getRetailerReturnProductBills,
+  createRetailerReturnRequest,
+  getRetailerProfile,
   createRetailerOrder,
   getRetailerApproveStockBills,
   approveRetailerStock,
-  getRetailerPurchaseHistory
+  getRetailerPurchaseHistory,
+  getRetailerSalesHistory
 }

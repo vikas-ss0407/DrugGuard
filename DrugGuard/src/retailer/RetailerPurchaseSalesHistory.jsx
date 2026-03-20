@@ -1,21 +1,120 @@
+import { useEffect, useMemo, useState } from 'react'
+import { getRetailerPurchases, getRetailerSalesHistory } from '../api/retailer/retailerApi'
+
 export default function RetailerPurchaseSalesHistory() {
-  const transactions = [
-    { id: 1, type: 'Purchase', reference: 'WHL-001-2024', entity: 'MediCorp Wholesale', drug: 'Paracetamol 500mg', quantity: 500, amount: '₹12,500', date: '2024-02-03', status: 'Completed' },
-    { id: 2, type: 'Sale', reference: 'CST-001-2024', entity: 'Customer - John Doe', drug: 'Paracetamol 500mg', quantity: 100, amount: '₹3,000', date: '2024-02-03', status: 'Completed' },
-    { id: 3, type: 'Purchase', reference: 'WHL-002-2024', entity: 'HealthCare Distributors', drug: 'Amoxicillin 250mg', quantity: 200, amount: '₹8,500', date: '2024-02-02', status: 'Delivered' },
-    { id: 4, type: 'Sale', reference: 'CST-002-2024', entity: 'Customer - Jane Smith', drug: 'Aspirin 75mg', quantity: 50, amount: '₹1,000', date: '2024-02-01', status: 'Completed' },
-    { id: 5, type: 'Purchase', reference: 'WHL-003-2024', entity: 'Prime Pharmaceuticals', drug: 'Ibuprofen 400mg', quantity: 1000, amount: '₹30,000', date: '2024-02-01', status: 'Delivered' }
-  ]
+  const [loading, setLoading] = useState(true)
+  const [purchaseTransactions, setPurchaseTransactions] = useState([])
+  const [salesTransactions, setSalesTransactions] = useState([])
 
-  const purchaseTransactions = transactions.filter(tx => tx.type === 'Purchase')
-  const salesTransactions = transactions.filter(tx => tx.type === 'Sale')
+  useEffect(() => {
+    let active = true
 
-  const stats = [
-    { label: 'Total Purchases', value: '₹51,000', icon: '🛒' },
-    { label: 'Total Sales', value: '₹4,000', icon: '💳' },
-    { label: 'Profit Margin', value: '21%', icon: '📈' },
-    { label: 'Transactions', value: '5', icon: '📊' }
-  ]
+    async function loadCombinedHistory() {
+      try {
+        setLoading(true)
+
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const retailerId = user?.id || user?.uid
+
+        if (!retailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        const [purchasesResponse, salesResponse] = await Promise.all([
+          getRetailerPurchases(retailerId),
+          getRetailerSalesHistory(retailerId)
+        ])
+
+        if (!active) return
+
+        const purchases = (Array.isArray(purchasesResponse.transactions) ? purchasesResponse.transactions : [])
+          .filter((tx) => tx.orderType === 'retailer_purchase_order')
+          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+          .flatMap((tx) => {
+            const items = Array.isArray(tx.items) && tx.items.length > 0
+              ? tx.items
+              : [{
+                  id: tx.id,
+                  medicineName: '-',
+                  quantity: 0,
+                  amount: tx.totalAmount || 0
+                }]
+
+            return items.map((item, index) => ({
+              id: `${tx.id}-${item.id || index}`,
+              reference: tx.billNo || tx.id,
+              entity: tx.sellerName || 'Unknown Wholesaler',
+              drug: item.medicineName || '-',
+              quantity: Number(item.quantity || 0),
+              amount: Number(item.amount || Number(item.rate || 0) * Number(item.quantity || 0)),
+              date: tx.deliveredDate || String(tx.createdAt || '').slice(0, 10) || '-',
+              status: tx.orderStatus === 'approved' ? 'Delivered' : String(tx.orderStatus || 'Pending')
+            }))
+          })
+
+        const sales = (Array.isArray(salesResponse.sales) ? salesResponse.sales : [])
+          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+          .flatMap((sale) => {
+            const items = Array.isArray(sale.items) && sale.items.length > 0
+              ? sale.items
+              : [{
+                  id: sale.id,
+                  medicineName: '-',
+                  quantity: 0,
+                  amount: sale.totalAmount || 0
+                }]
+
+            return items.map((item, index) => ({
+              id: `${sale.id}-${item.id || index}`,
+              reference: sale.billNo || sale.id,
+              entity: `Customer - ${sale.customerName || 'Walk-in Customer'}`,
+              drug: item.medicineName || '-',
+              quantity: Number(item.quantity || 0),
+              amount: Number(item.amount || 0),
+              date: sale.date || String(sale.createdAt || '').slice(0, 10) || '-',
+              status: sale.orderStatus === 'completed' ? 'Completed' : String(sale.orderStatus || 'Completed')
+            }))
+          })
+
+        setPurchaseTransactions(purchases)
+        setSalesTransactions(sales)
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load purchase and sales history')
+          setPurchaseTransactions([])
+          setSalesTransactions([])
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadCombinedHistory()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+  const stats = useMemo(() => {
+    const totalPurchaseAmount = purchaseTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+    const totalSalesAmount = salesTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+    const totalTransactions = purchaseTransactions.length + salesTransactions.length
+    const profitMargin = totalSalesAmount > 0
+      ? `${(((totalSalesAmount - totalPurchaseAmount) / totalSalesAmount) * 100).toFixed(1)}%`
+      : '0%'
+
+    return [
+      { label: 'Total Purchases', value: formatCurrency(totalPurchaseAmount), icon: '🛒' },
+      { label: 'Total Sales', value: formatCurrency(totalSalesAmount), icon: '💳' },
+      { label: 'Profit Margin', value: profitMargin, icon: '📈' },
+      { label: 'Transactions', value: String(totalTransactions), icon: '📊' }
+    ]
+  }, [purchaseTransactions, salesTransactions])
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -56,13 +155,20 @@ export default function RetailerPurchaseSalesHistory() {
                   </tr>
                 </thead>
                 <tbody>
+                  {!loading && purchaseTransactions.length === 0 && (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-10 text-center text-slate-400">
+                        No purchase history found.
+                      </td>
+                    </tr>
+                  )}
                   {purchaseTransactions.map((tx) => (
                     <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                       <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.entity}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.drug}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.quantity} units</td>
-                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{formatCurrency(tx.amount)}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.date}</td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-semibold">
@@ -95,13 +201,20 @@ export default function RetailerPurchaseSalesHistory() {
                   </tr>
                 </thead>
                 <tbody>
+                  {!loading && salesTransactions.length === 0 && (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-10 text-center text-slate-400">
+                        No sales history found.
+                      </td>
+                    </tr>
+                  )}
                   {salesTransactions.map((tx) => (
                     <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                       <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.entity}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.drug}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.quantity} units</td>
-                      <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{formatCurrency(tx.amount)}</td>
                       <td className="px-6 py-4 text-slate-300">{tx.date}</td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-semibold">

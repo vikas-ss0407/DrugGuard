@@ -1,36 +1,85 @@
+import { useEffect, useMemo, useState } from 'react'
+import { getRetailerSalesHistory } from '../api/retailer/retailerApi'
+
 export default function RetailerSalesHistory() {
-  const sales = [
-    {
-      id: 1,
-      reference: 'CST-001-2024',
-      customerName: 'John Doe',
-      doctorName: 'Dr. Priya Sharma',
-      medicineName: 'Paracetamol 500mg',
-      packaging: 'Strip',
-      batch: 'BAT001',
-      company: 'Cipla Ltd',
-      expiryDate: '2026-06-15',
-      quantity: 10,
-      amount: '₹350',
-      date: '2024-02-03',
-      status: 'Completed'
-    },
-    {
-      id: 2,
-      reference: 'CST-002-2024',
-      customerName: 'Jane Smith',
-      doctorName: 'Dr. Arjun Nair',
-      medicineName: 'Aspirin 75mg',
-      packaging: 'Tablet',
-      batch: 'BAT002',
-      company: 'GSK India',
-      expiryDate: '2026-08-20',
-      quantity: 5,
-      amount: '₹125',
-      date: '2024-02-01',
-      status: 'Completed'
+  const [loading, setLoading] = useState(true)
+  const [salesRows, setSalesRows] = useState([])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadSalesHistory() {
+      try {
+        setLoading(true)
+
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const retailerId = user?.id || user?.uid
+        if (!retailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        const response = await getRetailerSalesHistory(retailerId)
+        if (!active) return
+
+        const rows = (Array.isArray(response.sales) ? response.sales : []).flatMap((sale) => {
+          const items = Array.isArray(sale.items) && sale.items.length > 0
+            ? sale.items
+            : [{
+                id: sale.id,
+                medicineName: '-',
+                batch: '-',
+                quantity: 0,
+                packaging: '',
+                company: '',
+                expiryDate: null,
+                amount: sale.totalAmount || 0
+              }]
+
+          return items.map((item, index) => ({
+            id: `${sale.id}-${item.id || index}`,
+            reference: sale.billNo,
+            customerName: sale.customerName || '-',
+            doctorName: sale.doctorName || '-',
+            medicineName: item.medicineName || '-',
+            packaging: item.packaging || 'Unit',
+            batch: item.batch || '-',
+            company: item.company || '-',
+            expiryDate: item.expiryDate || null,
+            quantity: Number(item.quantity || 0),
+            amount: Number(item.amount || 0),
+            date: sale.date || '-',
+            status: String(sale.orderStatus || 'completed')
+          }))
+        })
+
+        setSalesRows(rows)
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load sales history')
+          setSalesRows([])
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
     }
-  ]
+
+    loadSalesHistory()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const sales = useMemo(() => salesRows, [salesRows])
+
+  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+  const statusLabel = (status) => {
+    if (status === 'completed') return 'Completed'
+    return status
+  }
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -59,6 +108,13 @@ export default function RetailerSalesHistory() {
                 </tr>
               </thead>
               <tbody>
+                {!loading && sales.length === 0 && (
+                  <tr>
+                    <td colSpan="11" className="px-6 py-10 text-center text-slate-400">
+                      No sales history found.
+                    </td>
+                  </tr>
+                )}
                 {sales.map((tx) => (
                   <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                     <td className="px-6 py-4 text-slate-300 font-semibold">{tx.reference}</td>
@@ -67,15 +123,15 @@ export default function RetailerSalesHistory() {
                     <td className="px-6 py-4 text-slate-300">{tx.medicineName}</td>
                     <td className="px-6 py-4 text-slate-300 font-mono">{tx.batch}</td>
                     <td className="px-6 py-4 text-slate-300">{tx.company}</td>
-                    <td className="px-6 py-4 text-slate-300">{new Date(tx.expiryDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-slate-300">{tx.expiryDate ? new Date(tx.expiryDate).toLocaleDateString() : '-'}</td>
                     <td className="px-6 py-4 text-slate-300">
                       {tx.quantity} {tx.packaging === 'Strip' ? 'strip' : tx.packaging === 'Tablet' ? 'tablet' : 'ml'}
                     </td>
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{tx.amount}</td>
+                    <td className="px-6 py-4 text-slate-300 font-semibold">{formatCurrency(tx.amount)}</td>
                     <td className="px-6 py-4 text-slate-300">{tx.date}</td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-semibold">
-                        {tx.status}
+                        {statusLabel(tx.status)}
                       </span>
                     </td>
                   </tr>

@@ -1,46 +1,93 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getRetailerPurchases } from '../api/retailer/retailerApi'
 
 export default function RetailerPurchaseHistory() {
+  const [loading, setLoading] = useState(true)
+  const [bills, setBills] = useState([])
   const [selectedBill, setSelectedBill] = useState('')
 
-  const bills = [
-    {
-      id: 1,
-      billNo: 'WHL-001-2024',
-      wholesaler: 'MediCorp Wholesale',
-      date: '2024-02-03',
-      totalAmount: '₹12,500',
-      status: 'Completed',
-      products: [
-        { id: 1, name: 'Paracetamol 500mg', batch: 'BAT001', quantity: 300, rate: '₹25' },
-        { id: 2, name: 'Aspirin 75mg', batch: 'BAT002', quantity: 200, rate: '₹20' }
-      ]
-    },
-    {
-      id: 2,
-      billNo: 'WHL-002-2024',
-      wholesaler: 'HealthCare Distributors',
-      date: '2024-02-02',
-      totalAmount: '₹8,500',
-      status: 'Delivered',
-      products: [
-        { id: 3, name: 'Amoxicillin 250mg', batch: 'BAT004', quantity: 200, rate: '₹42.50' }
-      ]
-    },
-    {
-      id: 3,
-      billNo: 'WHL-003-2024',
-      wholesaler: 'Prime Pharmaceuticals',
-      date: '2024-02-01',
-      totalAmount: '₹30,000',
-      status: 'Delivered',
-      products: [
-        { id: 4, name: 'Ibuprofen 400mg', batch: 'BAT003', quantity: 1000, rate: '₹30' }
-      ]
-    }
-  ]
+  useEffect(() => {
+    let active = true
 
-  const selectedBillData = bills.find(bill => bill.billNo === selectedBill)
+    async function loadPurchases() {
+      try {
+        setLoading(true)
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const retailerId = user?.id || user?.uid
+
+        if (!retailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        const response = await getRetailerPurchases(retailerId)
+        if (!active) return
+
+        const mappedBills = (Array.isArray(response.transactions) ? response.transactions : [])
+          .filter((tx) => tx.orderType === 'retailer_purchase_order')
+          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+          .map((tx) => {
+            const products = Array.isArray(tx.items)
+              ? tx.items.map((item, index) => ({
+                  id: String(item.id || `${item.medicineName || 'item'}-${index}`),
+                  name: item.medicineName || '-',
+                  batch: item.batch || '-',
+                  quantity: Number(item.quantity || 0),
+                  rate: Number(item.rate || 0)
+                }))
+              : []
+
+            const deliveredDate = tx.deliveredDate || String(tx.createdAt || '').slice(0, 10)
+            const status = String(tx.orderStatus || 'pending_approval')
+
+            return {
+              id: tx.id,
+              billNo: tx.billNo || tx.id,
+              wholesaler: tx.sellerName || 'Unknown Wholesaler',
+              date: deliveredDate || '-',
+              totalAmount: Number(tx.totalAmount || 0),
+              status,
+              products
+            }
+          })
+
+        setBills(mappedBills)
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load purchase history')
+          setBills([])
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadPurchases()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const selectedBillData = useMemo(
+    () => bills.find((bill) => bill.billNo === selectedBill) || null,
+    [bills, selectedBill]
+  )
+
+  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+  const formatStatus = (status) => {
+    if (status === 'approved') return 'Delivered'
+    if (status === 'pending_approval') return 'Pending Approval'
+    return status
+  }
+
+  const statusBadgeClass = (status) => {
+    if (status === 'approved') return 'bg-green-600'
+    if (status === 'pending_approval') return 'bg-yellow-600'
+    return 'bg-blue-600'
+  }
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
@@ -55,6 +102,7 @@ export default function RetailerPurchaseHistory() {
           <select
             value={selectedBill}
             onChange={(e) => setSelectedBill(e.target.value)}
+            disabled={loading}
             className="w-full md:w-96 px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Choose a bill</option>
@@ -80,15 +128,22 @@ export default function RetailerPurchaseHistory() {
                 </tr>
               </thead>
               <tbody>
+                {!loading && bills.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-10 text-center text-slate-400">
+                      No purchase history found.
+                    </td>
+                  </tr>
+                )}
                 {bills.map((bill) => (
                   <tr key={bill.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
                     <td className="px-6 py-4 text-slate-300 font-semibold">{bill.billNo}</td>
                     <td className="px-6 py-4 text-slate-300">{bill.wholesaler}</td>
                     <td className="px-6 py-4 text-slate-300">{bill.date}</td>
-                    <td className="px-6 py-4 text-slate-300 font-semibold">{bill.totalAmount}</td>
+                    <td className="px-6 py-4 text-slate-300 font-semibold">{formatCurrency(bill.totalAmount)}</td>
                     <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-semibold">
-                        {bill.status}
+                      <span className={`px-3 py-1 text-white rounded-full text-xs font-semibold ${statusBadgeClass(bill.status)}`}>
+                        {formatStatus(bill.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -129,7 +184,7 @@ export default function RetailerPurchaseHistory() {
                       <td className="px-6 py-4 text-slate-300">{product.name}</td>
                       <td className="px-6 py-4 text-slate-300 font-mono">{product.batch}</td>
                       <td className="px-6 py-4 text-slate-300">{product.quantity} units</td>
-                      <td className="px-6 py-4 text-slate-300 font-semibold">{product.rate}</td>
+                      <td className="px-6 py-4 text-slate-300 font-semibold">{formatCurrency(product.rate)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,39 +1,58 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  createRetailerReturnRequest,
+  getRetailerReturnProductBills
+} from '../api/retailer/retailerApi'
 
 export default function ReturnProduct() {
-  const [selectedBill, setSelectedBill] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [retailerId, setRetailerId] = useState('')
+  const [bills, setBills] = useState([])
+  const [selectedBillId, setSelectedBillId] = useState('')
   const [selectedProducts, setSelectedProducts] = useState([])
   const [returnReason, setReturnReason] = useState('')
   const [returnNotes, setReturnNotes] = useState('')
 
-  // Sample bills data with products
-  const bills = [
-    {
-      billNo: 'SAL-001-2024',
-      date: '2024-01-15',
-      products: [
-        { id: 1, name: 'Paracetamol 500mg', batch: 'BAT001', quantity: 10, packaging: 'Strip', mrp: 35 },
-        { id: 2, name: 'Aspirin 75mg', batch: 'BAT002', quantity: 5, packaging: 'Strip', mrp: 25 },
-        { id: 3, name: 'Ibuprofen 400mg', batch: 'BAT003', quantity: 8, packaging: 'Strip', mrp: 40 }
-      ]
-    },
-    {
-      billNo: 'SAL-002-2024',
-      date: '2024-01-20',
-      products: [
-        { id: 4, name: 'Amoxicillin 250mg', batch: 'BAT004', quantity: 2, packaging: 'Strip', mrp: 60 },
-        { id: 5, name: 'Cough Syrup', batch: 'BAT005', quantity: 1, packaging: 'Strip', mrp: 55 }
-      ]
-    },
-    {
-      billNo: 'SAL-003-2024',
-      date: '2024-01-25',
-      products: [
-        { id: 6, name: 'Vitamin B12', batch: 'BAT006', quantity: 15, packaging: 'Strip', mrp: 22 },
-        { id: 7, name: 'Paracetamol 500mg', batch: 'BAT001', quantity: 20, packaging: 'Strip', mrp: 35 }
-      ]
+  useEffect(() => {
+    let active = true
+
+    async function loadBills() {
+      try {
+        setLoading(true)
+
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const currentRetailerId = user?.id || user?.uid
+        if (!currentRetailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        if (active) {
+          setRetailerId(currentRetailerId)
+        }
+
+        const response = await getRetailerReturnProductBills(currentRetailerId)
+        if (!active) return
+
+        setBills(Array.isArray(response.bills) ? response.bills : [])
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load bills')
+          setBills([])
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
     }
-  ]
+
+    loadBills()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const returnReasons = [
     'Damaged packaging',
@@ -45,30 +64,70 @@ export default function ReturnProduct() {
     'Customer returned'
   ]
 
-  const currentBillProducts = bills.find(b => b.billNo === selectedBill)?.products || []
+  const selectedBill = useMemo(
+    () => bills.find((bill) => bill.id === selectedBillId) || null,
+    [bills, selectedBillId]
+  )
+
+  const currentBillProducts = selectedBill?.products || []
 
   const handleProductToggle = (productId) => {
     setSelectedProducts(prev => {
-      if (prev.includes(productId)) {
-        return prev.filter(id => id !== productId)
+      const id = String(productId)
+      if (prev.includes(id)) {
+        return prev.filter(existingId => existingId !== id)
       } else {
-        return [...prev, productId]
+        return [...prev, id]
       }
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!selectedBill || selectedProducts.length === 0 || !returnReason) {
       alert('Please fill all required fields and select at least one product')
       return
     }
-    const selectedProductDetails = currentBillProducts.filter(p => selectedProducts.includes(p.id))
-    alert(`Return request submitted successfully!\nBill: ${selectedBill}\nProducts: ${selectedProductDetails.length}\nReason: ${returnReason}`)
-    setSelectedBill('')
-    setSelectedProducts([])
-    setReturnReason('')
-    setReturnNotes('')
+
+    if (!retailerId) {
+      alert('Retailer session not found. Please login again.')
+      return
+    }
+
+    const selectedProductDetails = currentBillProducts.filter((product) =>
+      selectedProducts.includes(String(product.id))
+    )
+
+    const returnType = returnReason === 'Expired batch' ? 'expiry' : 'other'
+
+    try {
+      setSubmitting(true)
+      const response = await createRetailerReturnRequest(retailerId, {
+        orderId: selectedBill.id,
+        billNo: selectedBill.billNo,
+        wholesalerId: selectedBill.wholesalerId,
+        reason: returnReason,
+        returnType,
+        notes: returnNotes,
+        items: selectedProductDetails.map((product) => ({
+          medicineId: product.medicineId || product.id,
+          medicineName: product.name,
+          batch: product.batch,
+          quantity: Number(product.quantity || 0)
+        }))
+      })
+
+      alert(`Return request submitted successfully!\nBill: ${selectedBill.billNo}\nProducts: ${selectedProductDetails.length}\nRequests Created: ${response.requestCount || selectedProductDetails.length}`)
+
+      setSelectedBillId('')
+      setSelectedProducts([])
+      setReturnReason('')
+      setReturnNotes('')
+    } catch (error) {
+      alert(error.message || 'Failed to submit return request')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -79,22 +138,29 @@ export default function ReturnProduct() {
           <p className="text-slate-400">Submit a return request for medicines from bills</p>
         </div>
 
+        {loading && (
+          <div className="mb-6 rounded-lg border border-slate-700 bg-slate-800 p-4 text-slate-300">
+            Loading bills...
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="bg-slate-800 rounded-lg p-8 border border-slate-700">
           {/* Bill Selection Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Select Bill *</label>
               <select
-                value={selectedBill}
+                value={selectedBillId}
                 onChange={(e) => {
-                  setSelectedBill(e.target.value)
+                  setSelectedBillId(e.target.value)
                   setSelectedProducts([])
                 }}
+                disabled={loading || submitting}
                 className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Choose a bill</option>
                 {bills.map((bill) => (
-                  <option key={bill.billNo} value={bill.billNo}>
+                  <option key={bill.id} value={bill.id}>
                     {bill.billNo} - {bill.date}
                   </option>
                 ))}
@@ -127,7 +193,7 @@ export default function ReturnProduct() {
                           <td className="px-4 py-4">
                             <input
                               type="checkbox"
-                              checked={selectedProducts.includes(product.id)}
+                              checked={selectedProducts.includes(String(product.id))}
                               onChange={() => handleProductToggle(product.id)}
                               className="w-4 h-4 cursor-pointer"
                             />
@@ -167,6 +233,7 @@ export default function ReturnProduct() {
                 <select
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
+                  disabled={submitting}
                   className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">Select reason</option>
@@ -183,6 +250,7 @@ export default function ReturnProduct() {
                   onChange={(e) => setReturnNotes(e.target.value)}
                   placeholder="Provide any additional details"
                   rows="1"
+                  disabled={submitting}
                   className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
@@ -193,20 +261,22 @@ export default function ReturnProduct() {
             <button
               type="reset"
               onClick={() => {
-                setSelectedBill('')
+                setSelectedBillId('')
                 setSelectedProducts([])
                 setReturnReason('')
                 setReturnNotes('')
               }}
+              disabled={submitting}
               className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-semibold"
             >
               Clear
             </button>
             <button
               type="submit"
+              disabled={submitting || loading}
               className="px-8 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
             >
-              Submit Return Request
+              {submitting ? 'Submitting...' : 'Submit Return Request'}
             </button>
           </div>
         </form>
