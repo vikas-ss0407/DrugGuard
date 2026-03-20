@@ -375,6 +375,7 @@ async function approveWholesalerStock(req, res) {
           quantity: existingQty + quantity,
           rate: Number(item.rate || 0),
           mrp: Number(item.mrp || 0),
+          manufactureDate: item.manufactureDate || null,
           expiryDate: item.expiryDate || null,
           updatedAt: nowIso
         })
@@ -387,6 +388,7 @@ async function approveWholesalerStock(req, res) {
           quantity,
           rate: Number(item.rate || 0),
           mrp: Number(item.mrp || 0),
+          manufactureDate: item.manufactureDate || null,
           expiryDate: item.expiryDate || null,
           packType: item.packType || null,
           packSize: item.packSize || null,
@@ -441,6 +443,7 @@ async function getWholesalerSellCatalog(req, res) {
         name: item.medicineName || '-',
         batch: item.batch || '-',
         company: item.manufacturerName || item.companyName || '',
+        manufactureDate: item.manufactureDate || null,
         expiryDate: item.expiryDate || null,
         rate: Number(item.rate || 0),
         mrp: Number(item.mrp || 0),

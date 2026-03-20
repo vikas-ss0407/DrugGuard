@@ -1,6 +1,14 @@
-import { useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createRetailerCustomerSale,
+  getRetailerSellCatalog
+} from '../api/retailer/retailerApi'
 
 export default function SellToCustomer() {
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [retailerId, setRetailerId] = useState('')
+  const [availableDrugs, setAvailableDrugs] = useState([])
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
@@ -19,37 +27,61 @@ export default function SellToCustomer() {
   const quantityInputRef = useRef(null)
   const packagingInputRef = useRef(null)
 
-  const availableDrugs = [
-    { id: 1, name: 'Paracetamol 500mg', batch: 'BAT001', company: 'Cipla Ltd', expiryDate: '2026-06-15', stock: 500, sellingPrice: 30, category: 'Strip', categoryUnit: '10\'s', mrp: 35, tabletsPerStrip: 10 },
-    { id: 2, name: 'Aspirin 75mg', batch: 'BAT002', company: 'GSK India', expiryDate: '2026-08-20', stock: 300, sellingPrice: 20, category: 'Strip', categoryUnit: '15\'s', mrp: 25, tabletsPerStrip: 15 },
-    { id: 3, name: 'Ibuprofen 400mg', batch: 'BAT003', company: 'Abbott', expiryDate: '2026-07-10', stock: 1000, sellingPrice: 35, category: 'Strip', categoryUnit: '10\'s', mrp: 40, tabletsPerStrip: 10 },
-    { id: 4, name: 'Amoxicillin 250mg', batch: 'BAT004', company: 'Lupin Ltd', expiryDate: '2026-09-30', stock: 200, sellingPrice: 50, category: 'Bottle', categoryUnit: '100ml', mrp: 60, tabletsPerStrip: 0 }
-  ]
+  useEffect(() => {
+    let active = true
 
-  const calculatePricePerUnit = (drug) => {
-    if (drug.category === 'Strip' && currentMedicine.drugId === drug.id.toString()) {
-      if (currentMedicine.packaging === 'tablet') {
-        return (drug.mrp / drug.tabletsPerStrip).toFixed(2)
-      } else if (currentMedicine.packaging === 'strip') {
-        return drug.mrp
+    async function loadCatalog() {
+      try {
+        setLoading(true)
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const currentRetailerId = user?.id || user?.uid
+
+        if (!currentRetailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        if (active) {
+          setRetailerId(currentRetailerId)
+        }
+
+        const response = await getRetailerSellCatalog(currentRetailerId)
+        if (!active) return
+        setAvailableDrugs(Array.isArray(response.medicines) ? response.medicines : [])
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load stock catalog')
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
       }
     }
-    return drug.mrp
-  }
+
+    loadCatalog()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const getDrugById = (drugId) => availableDrugs.find((d) => String(d.id) === String(drugId))
+
+  const filteredDrugs = useMemo(
+    () => availableDrugs.filter((d) => d.name.toLowerCase().includes(medicineSearch.toLowerCase())),
+    [availableDrugs, medicineSearch]
+  )
 
   const calculateAmount = (drugId, quantity, packaging) => {
-    const drugInfo = availableDrugs.find(d => d.id === parseInt(drugId))
+    const drugInfo = getDrugById(drugId)
     if (!drugInfo) return 0
-    
-    let pricePerUnit = drugInfo.mrp
-    if (drugInfo.category === 'Strip') {
-      if (packaging === 'tablet') {
-        pricePerUnit = drugInfo.mrp / drugInfo.tabletsPerStrip
-      } else if (packaging === 'strip') {
-        pricePerUnit = drugInfo.mrp
-      }
+
+    let pricePerUnit = Number(drugInfo.mrp || drugInfo.sellingPrice || 0)
+    if (drugInfo.category === 'Strip' && packaging === 'tablet' && Number(drugInfo.tabletsPerStrip) > 1) {
+      pricePerUnit = pricePerUnit / Number(drugInfo.tabletsPerStrip)
     }
-    return (pricePerUnit * quantity).toFixed(2)
+
+    return (pricePerUnit * Number(quantity || 0)).toFixed(2)
   }
 
   const handleInputChange = (e) => {
@@ -66,25 +98,50 @@ export default function SellToCustomer() {
       return
     }
 
-    const selectedDrug = availableDrugs.find(d => d.id === parseInt(currentMedicine.drugId))
-    if (selectedDrug.category === 'Strip' && !currentMedicine.packaging) {
+    const selectedDrug = getDrugById(currentMedicine.drugId)
+    if (!selectedDrug) {
+      alert('Selected medicine is not available in stock')
+      return
+    }
+
+    if (selectedDrug.category === 'Strip' && Number(selectedDrug.tabletsPerStrip) > 1 && !currentMedicine.packaging) {
       alert('Please select packaging type (Tablet/Strip)')
       return
     }
 
-    // Add to order summary
+    const qty = Number(currentMedicine.quantity)
+    if (!Number.isFinite(qty) || qty <= 0) {
+      alert('Quantity must be greater than 0')
+      return
+    }
+
+    const alreadyAddedQty = formData.drugs
+      .filter((d) => String(d.drugId) === String(currentMedicine.drugId))
+      .reduce((sum, d) => sum + Number(d.quantity || 0), 0)
+
+    if (alreadyAddedQty + qty > Number(selectedDrug.stock || 0)) {
+      alert(`Insufficient stock. Available: ${selectedDrug.stock}, Already added: ${alreadyAddedQty}`)
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
-      drugs: [...prev.drugs, { ...currentMedicine }]
+      drugs: [
+        ...prev.drugs,
+        {
+          drugId: String(currentMedicine.drugId),
+          quantity: String(qty),
+          packaging:
+            currentMedicine.packaging || (selectedDrug.category === 'Strip' ? 'strip' : selectedDrug.category)
+        }
+      ]
     }))
 
-    // Clear current selection
     setCurrentMedicine({ drugId: '', quantity: '', packaging: '' })
     setMedicineSearch('')
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    
-    // Focus back on search input
+
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus()
@@ -95,13 +152,13 @@ export default function SellToCustomer() {
   const selectMedicine = (drug) => {
     setCurrentMedicine(prev => ({ 
       ...prev, 
-      drugId: drug.id.toString(),
+      drugId: String(drug.id),
       packaging: drug.category === 'Strip' ? '' : 'N/A'
     }))
     setMedicineSearch(drug.name)
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    // Focus on quantity input after selection
+
     setTimeout(() => {
       if (quantityInputRef.current) {
         quantityInputRef.current.focus()
@@ -110,10 +167,6 @@ export default function SellToCustomer() {
   }
 
   const handleSearchKeyDown = (e) => {
-    const filteredDrugs = availableDrugs.filter(d => 
-      d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-    )
-
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setHighlightedIndex(prev => 
@@ -134,17 +187,15 @@ export default function SellToCustomer() {
   const handleQuantityKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      const selectedDrug = availableDrugs.find(d => d.id === parseInt(currentMedicine.drugId))
-      
-      // If medicine requires packaging selection, focus on it
-      if (selectedDrug && selectedDrug.category === 'Strip') {
+
+      const selectedDrug = getDrugById(currentMedicine.drugId)
+      if (selectedDrug && selectedDrug.category === 'Strip' && Number(selectedDrug.tabletsPerStrip) > 1) {
         setTimeout(() => {
           if (packagingInputRef.current) {
             packagingInputRef.current.focus()
           }
         }, 100)
       } else {
-        // Otherwise, add medicine directly
         addMedicineToOrder()
       }
     }
@@ -163,14 +214,72 @@ export default function SellToCustomer() {
     }, 0).toFixed(2)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (!formData.customerName || formData.drugs.length === 0) {
       alert('Please enter customer details and select drugs')
       return
     }
-    alert(`Sale completed successfully!\nCustomer: ${formData.customerName}\nPhone: ${formData.customerPhone}\nDoctor: ${formData.doctorName}\nTotal: ₹${calculateTotal()}`)
+
+    if (!retailerId) {
+      alert('Retailer session not found. Please login again.')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      const payloadItems = formData.drugs
+        .map((drug) => {
+          const drugInfo = getDrugById(drug.drugId)
+          if (!drugInfo) return null
+
+          return {
+            stockId: String(drugInfo.stockId || drugInfo.id),
+            quantity: Number(drug.quantity || 0),
+            packaging: drug.packaging || ''
+          }
+        })
+        .filter(Boolean)
+
+      if (payloadItems.length === 0) {
+        throw new Error('No valid medicines found to create sale')
+      }
+
+      const response = await createRetailerCustomerSale({
+        retailerId,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        doctorName: formData.doctorName,
+        items: payloadItems
+      })
+
+      alert(
+        `Sale completed successfully!\nBill No: ${response.billNo}\nCustomer: ${formData.customerName}\nTotal: ₹${Number(response.totalAmount || 0).toFixed(2)}`
+      )
+
+      setFormData({ customerName: '', customerPhone: '', doctorName: '', drugs: [] })
+      setCurrentMedicine({ drugId: '', quantity: '', packaging: '' })
+      setMedicineSearch('')
+      setOpenDropdown(false)
+      setHighlightedIndex(-1)
+
+      const refresh = await getRetailerSellCatalog(retailerId)
+      setAvailableDrugs(Array.isArray(refresh.medicines) ? refresh.medicines : [])
+    } catch (error) {
+      alert(error.message || 'Failed to complete sale')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleClear = () => {
     setFormData({ customerName: '', customerPhone: '', doctorName: '', drugs: [] })
+    setCurrentMedicine({ drugId: '', quantity: '', packaging: '' })
+    setMedicineSearch('')
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
   }
 
   const handlePrintReceipt = () => {
@@ -287,7 +396,7 @@ export default function SellToCustomer() {
             </thead>
             <tbody>
               ${formData.drugs.map((drug, idx) => {
-                const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+                const drugInfo = getDrugById(drug.drugId)
                 if (!drugInfo) return ''
                 const amount = calculateAmount(drug.drugId, drug.quantity, drug.packaging)
                 return `
@@ -392,18 +501,15 @@ export default function SellToCustomer() {
                       onKeyDown={handleSearchKeyDown}
                       onFocus={() => setOpenDropdown(true)}
                       onBlur={() => setTimeout(() => setOpenDropdown(false), 300)}
-                      placeholder="Type medicine name..."
+                      placeholder={loading ? 'Loading stock...' : 'Type medicine name...'}
+                      disabled={loading || submitting}
                       className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
                     />
                     {openDropdown && (
                       <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-purple-500 rounded-lg shadow-2xl z-[9999] w-full max-h-72 overflow-y-auto">
-                        {availableDrugs.filter(d => 
-                          d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                        ).length > 0 ? (
+                        {filteredDrugs.length > 0 ? (
                           <div className="divide-y divide-slate-700">
-                            {availableDrugs.filter(d => 
-                              d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                            ).map((d, index) => (
+                            {filteredDrugs.map((d, index) => (
                               <div
                                 key={d.id}
                                 onMouseDown={(e) => {
@@ -425,7 +531,7 @@ export default function SellToCustomer() {
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">Price</div>
-                                    <div className="text-green-400 font-bold">₹{d.sellingPrice}</div>
+                                    <div className="text-green-400 font-bold">₹{Number(d.sellingPrice || d.mrp || 0).toFixed(2)}</div>
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">MRP</div>
@@ -464,11 +570,12 @@ export default function SellToCustomer() {
                     value={currentMedicine.quantity}
                     onChange={(e) => setCurrentMedicine(prev => ({ ...prev, quantity: e.target.value }))}
                     onKeyPress={handleQuantityKeyPress}
+                    disabled={loading || submitting}
                     className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
                     placeholder="Qty"
                   />
                 </div>
-                {currentMedicine.drugId && availableDrugs.find(d => d.id === parseInt(currentMedicine.drugId))?.category === 'Strip' && (
+                {currentMedicine.drugId && getDrugById(currentMedicine.drugId)?.category === 'Strip' && Number(getDrugById(currentMedicine.drugId)?.tabletsPerStrip || 0) > 1 && (
                   <div className="w-32">
                     <label className="block text-xs font-medium text-slate-300 mb-2">Packaging</label>
                     <select
@@ -476,6 +583,7 @@ export default function SellToCustomer() {
                       value={currentMedicine.packaging}
                       onChange={(e) => setCurrentMedicine(prev => ({ ...prev, packaging: e.target.value }))}
                       onKeyPress={handlePackagingKeyPress}
+                      disabled={loading || submitting}
                       className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
                     >
                       <option value="">Select</option>
@@ -487,6 +595,7 @@ export default function SellToCustomer() {
                 <button
                   type="button"
                   onClick={addMedicineToOrder}
+                  disabled={loading || submitting}
                   className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:from-purple-700 hover:to-purple-600 transition-all font-semibold"
                 >
                   ➕ Add
@@ -522,18 +631,11 @@ export default function SellToCustomer() {
                     </thead>
                     <tbody>
                       {formData.drugs.map((drug, idx) => {
-                        const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+                        const drugInfo = getDrugById(drug.drugId)
                         if (!drugInfo) return null
-                        
-                        let pricePerUnit = drugInfo.sellingPrice
-                        if (drugInfo.category === 'Strip' && drug.packaging === 'tablet') {
-                          pricePerUnit = drugInfo.sellingPrice / drugInfo.tabletsPerStrip
-                        } else if (drugInfo.category === 'Strip' && drug.packaging === 'strip') {
-                          pricePerUnit = drugInfo.sellingPrice
-                        }
-                        
+
                         const amount = calculateAmount(drug.drugId, drug.quantity, drug.packaging)
-                        
+
                         return (
                           <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                             <td className="px-4 py-4 text-center">
@@ -551,14 +653,14 @@ export default function SellToCustomer() {
                               {drugInfo.batch}
                             </td>
                             <td className="px-4 py-4 text-slate-300 text-sm">
-                              {new Date(drugInfo.expiryDate).toLocaleDateString()}
+                              {drugInfo.expiryDate ? new Date(drugInfo.expiryDate).toLocaleDateString() : '-'}
                             </td>
                             <td className="px-4 py-4 text-slate-300 text-sm">
                               {drugInfo.category} ({drugInfo.categoryUnit})
                             </td>
                             <td className="px-4 py-4 text-center">
                               <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold">
-                                {drug.packaging === 'tablet' ? '💊 Tablet' : '📦 Strip'}
+                                {drug.packaging === 'tablet' ? '💊 Tablet' : drug.packaging === 'strip' ? '📦 Strip' : '📦 Unit'}
                               </span>
                             </td>
                             <td className="px-4 py-4 text-center text-slate-300 font-semibold">
@@ -596,7 +698,7 @@ export default function SellToCustomer() {
                 <button
                   type="button"
                   onClick={handlePrintReceipt}
-                  disabled={formData.drugs.length === 0}
+                  disabled={formData.drugs.length === 0 || loading || submitting}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🖨️ Print Receipt
@@ -619,15 +721,23 @@ export default function SellToCustomer() {
 
           <div className="flex justify-end gap-4">
             <button
-              type="reset"
+              type="button"
+              onClick={handleClear}
               className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-semibold"
             >
               Clear
             </button>
             <button
+              type="submit"
+              disabled={submitting || loading || formData.drugs.length === 0}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Completing Sale...' : 'Complete Sale'}
+            </button>
+            <button
               type="button"
               onClick={handlePrintReceipt}
-              disabled={formData.drugs.length === 0}
+              disabled={formData.drugs.length === 0 || loading || submitting}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               🖨️ Print Receipt

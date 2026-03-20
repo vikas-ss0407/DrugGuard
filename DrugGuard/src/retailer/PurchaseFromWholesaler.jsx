@@ -1,10 +1,19 @@
-import { useState, useRef } from 'react'
-import { createRetailerOrder } from '../api/retailer/retailerApi'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createRetailerOrder,
+  getRetailerWholesalerCatalog,
+  getRetailerWholesalers
+} from '../api/retailer/retailerApi'
 
 export default function PurchaseFromWholesaler() {
+  const [loadingWholesalers, setLoadingWholesalers] = useState(true)
+  const [loadingMedicines, setLoadingMedicines] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [retailerId, setRetailerId] = useState('')
+  const [wholesalers, setWholesalers] = useState([])
+  const [availableDrugs, setAvailableDrugs] = useState([])
   const [formData, setFormData] = useState({
-    wholesaler: '',
+    wholesalerId: '',
     drugs: []
   })
   const [currentMedicine, setCurrentMedicine] = useState({
@@ -17,16 +26,109 @@ export default function PurchaseFromWholesaler() {
   const searchInputRef = useRef(null)
   const quantityInputRef = useRef(null)
 
-  const wholesalers = ['MediCorp Wholesale', 'HealthCare Distributors', 'Prime Pharmaceuticals']
-  const availableDrugs = [
-    { id: 1, name: 'Paracetamol 500mg', batch: 'BAT001', company: 'Cipla Ltd', expiryDate: '2026-06-15', price: 20, mrp: 25, offer: '10+2', stock: 5000 },
-    { id: 2, name: 'Aspirin 75mg', batch: 'BAT002', company: 'GSK India', expiryDate: '2026-08-20', price: 12, mrp: 15, stock: 3000 },
-    { id: 3, name: 'Ibuprofen 400mg', batch: 'BAT003', company: 'Abbott', expiryDate: '2026-07-10', price: 25, mrp: 30, offer: '8+1', stock: 2500 },
-    { id: 4, name: 'Amoxicillin 250mg', batch: 'BAT004', company: 'Lupin Ltd', expiryDate: '2026-09-30', price: 35, mrp: 42.5, offer: '5+1', stock: 1500 }
-  ]
+  useEffect(() => {
+    let active = true
+
+    async function loadWholesalers() {
+      try {
+        setLoadingWholesalers(true)
+
+        const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
+        const currentRetailerId = user?.id || user?.uid
+        if (!currentRetailerId) {
+          throw new Error('Retailer session not found. Please login again.')
+        }
+
+        if (active) {
+          setRetailerId(currentRetailerId)
+        }
+
+        const response = await getRetailerWholesalers(currentRetailerId)
+        if (!active) return
+
+        setWholesalers(Array.isArray(response.wholesalers) ? response.wholesalers : [])
+      } catch (error) {
+        if (active) {
+          alert(error.message || 'Failed to load wholesalers')
+        }
+      } finally {
+        if (active) {
+          setLoadingWholesalers(false)
+        }
+      }
+    }
+
+    loadWholesalers()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadCatalog() {
+      if (!formData.wholesalerId || !retailerId) {
+        if (active) {
+          setAvailableDrugs([])
+        }
+        return
+      }
+
+      try {
+        setLoadingMedicines(true)
+        const response = await getRetailerWholesalerCatalog(retailerId, formData.wholesalerId)
+
+        if (!active) return
+        setAvailableDrugs(Array.isArray(response.medicines) ? response.medicines : [])
+      } catch (error) {
+        if (active) {
+          setAvailableDrugs([])
+          alert(error.message || 'Failed to load wholesaler medicines')
+        }
+      } finally {
+        if (active) {
+          setLoadingMedicines(false)
+        }
+      }
+    }
+
+    loadCatalog()
+
+    return () => {
+      active = false
+    }
+  }, [formData.wholesalerId, retailerId])
+
+  const selectedWholesaler = useMemo(
+    () => wholesalers.find((w) => w.id === formData.wholesalerId) || null,
+    [wholesalers, formData.wholesalerId]
+  )
+
+  const filteredDrugs = useMemo(
+    () =>
+      availableDrugs.filter((d) =>
+        d.name.toLowerCase().includes(medicineSearch.toLowerCase())
+      ),
+    [availableDrugs, medicineSearch]
+  )
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (name === 'wholesalerId') {
+      setCurrentMedicine({ drugId: '', quantity: '' })
+      setMedicineSearch('')
+      setOpenDropdown(false)
+      setHighlightedIndex(-1)
+      setFormData((prev) => ({
+        ...prev,
+        wholesalerId: value,
+        drugs: []
+      }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -34,24 +136,47 @@ export default function PurchaseFromWholesaler() {
   }
 
   const addMedicineToOrder = () => {
+    if (!formData.wholesalerId) {
+      alert('Please select a wholesaler first')
+      return
+    }
+
     if (!currentMedicine.drugId || !currentMedicine.quantity) {
       alert('Please select a medicine and enter quantity')
       return
     }
 
-    // Add to order summary
+    const selectedDrug = availableDrugs.find((d) => d.id === currentMedicine.drugId)
+    if (!selectedDrug) {
+      alert('Selected medicine is not available')
+      return
+    }
+
+    const qty = Number(currentMedicine.quantity)
+    if (!Number.isFinite(qty) || qty <= 0) {
+      alert('Quantity must be greater than 0')
+      return
+    }
+
+    const alreadyAddedQty = formData.drugs
+      .filter((d) => d.drugId === currentMedicine.drugId)
+      .reduce((sum, d) => sum + Number(d.quantity || 0), 0)
+
+    if (alreadyAddedQty + qty > Number(selectedDrug.stock || 0)) {
+      alert(`Insufficient stock. Available: ${selectedDrug.stock}, Already added: ${alreadyAddedQty}`)
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
-      drugs: [...prev.drugs, { ...currentMedicine }]
+      drugs: [...prev.drugs, { drugId: currentMedicine.drugId, quantity: String(qty) }]
     }))
 
-    // Clear current selection for next medicine
     setCurrentMedicine({ drugId: '', quantity: '' })
     setMedicineSearch('')
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    
-    // Focus back on search input
+
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus()
@@ -60,11 +185,11 @@ export default function PurchaseFromWholesaler() {
   }
 
   const selectMedicine = (drug) => {
-    setCurrentMedicine(prev => ({ ...prev, drugId: drug.id.toString() }))
+    setCurrentMedicine(prev => ({ ...prev, drugId: drug.id }))
     setMedicineSearch(drug.name)
     setOpenDropdown(false)
     setHighlightedIndex(-1)
-    // Focus on quantity input after selection
+
     setTimeout(() => {
       if (quantityInputRef.current) {
         quantityInputRef.current.focus()
@@ -73,10 +198,6 @@ export default function PurchaseFromWholesaler() {
   }
 
   const handleSearchKeyDown = (e) => {
-    const filteredDrugs = availableDrugs.filter(d => 
-      d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-    )
-
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setHighlightedIndex(prev => 
@@ -110,14 +231,22 @@ export default function PurchaseFromWholesaler() {
 
   const calculateTotal = () => {
     return formData.drugs.reduce((total, drug) => {
-      const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+      const drugInfo = availableDrugs.find(d => d.id === drug.drugId)
       return total + (drugInfo ? drugInfo.price * (drug.quantity || 0) : 0)
     }, 0).toFixed(2)
   }
 
+  const handleClear = () => {
+    setFormData({ wholesalerId: '', drugs: [] })
+    setCurrentMedicine({ drugId: '', quantity: '' })
+    setMedicineSearch('')
+    setOpenDropdown(false)
+    setHighlightedIndex(-1)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.wholesaler || formData.drugs.length === 0) {
+    if (!formData.wholesalerId || formData.drugs.length === 0) {
       alert('Please select wholesaler and add drugs')
       return
     }
@@ -125,26 +254,30 @@ export default function PurchaseFromWholesaler() {
     try {
       setSubmitting(true)
       const user = JSON.parse(localStorage.getItem('dg_user') || '{}')
-
       const retailerShopId = user?.id || user?.uid
 
       if (!retailerShopId) {
         throw new Error('Retailer session not found. Please login again.')
       }
 
+      if (!selectedWholesaler) {
+        throw new Error('Selected wholesaler not found')
+      }
+
       const items = formData.drugs
         .map((drug) => {
-          const drugInfo = availableDrugs.find((d) => d.id === parseInt(drug.drugId))
+          const drugInfo = availableDrugs.find((d) => d.id === drug.drugId)
           if (!drugInfo) return null
 
           const qty = Number(drug.quantity || 0)
           return {
-            id: String(drugInfo.id),
+            id: String(drugInfo.id || drugInfo.medicineId || drugInfo.name),
             medicineName: drugInfo.name,
             batch: drugInfo.batch,
             quantity: qty,
             rate: Number(drugInfo.price),
             mrp: Number(drugInfo.mrp),
+            manufactureDate: drugInfo.manufactureDate || null,
             expiryDate: drugInfo.expiryDate
           }
         })
@@ -157,17 +290,14 @@ export default function PurchaseFromWholesaler() {
       const response = await createRetailerOrder({
         retailerId: retailerShopId,
         retailerName: user.name || user.username || '',
-        wholesalerName: formData.wholesaler,
+        wholesalerId: selectedWholesaler.id,
+        wholesalerName: selectedWholesaler.name,
         district: user.district || null,
         items
       })
 
       alert(`Order placed successfully!\nBill No: ${response.billNo}\nTotal: ₹${response.totalAmount}`)
-      setFormData({ wholesaler: '', drugs: [] })
-      setCurrentMedicine({ drugId: '', quantity: '' })
-      setMedicineSearch('')
-      setOpenDropdown(false)
-      setHighlightedIndex(-1)
+      handleClear()
     } catch (error) {
       alert(error.message || 'Failed to place order')
     } finally {
@@ -188,14 +318,15 @@ export default function PurchaseFromWholesaler() {
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Select Wholesaler *</label>
               <select
-                name="wholesaler"
-                value={formData.wholesaler}
+                name="wholesalerId"
+                value={formData.wholesalerId}
                 onChange={handleInputChange}
+                disabled={loadingWholesalers || submitting}
                 className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Choose a wholesaler</option>
                 {wholesalers.map((w) => (
-                  <option key={w} value={w}>{w}</option>
+                  <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
             </div>
@@ -228,18 +359,15 @@ export default function PurchaseFromWholesaler() {
                       onKeyDown={handleSearchKeyDown}
                       onFocus={() => setOpenDropdown(true)}
                       onBlur={() => setTimeout(() => setOpenDropdown(false), 300)}
-                      placeholder="Type medicine name..."
+                      placeholder={loadingMedicines ? 'Loading medicines...' : 'Type medicine name...'}
+                      disabled={!formData.wholesalerId || loadingMedicines}
                       className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                     />
                     {openDropdown && (
                       <div className="absolute top-full left-0 mt-2 bg-slate-900 border-2 border-blue-500 rounded-lg shadow-2xl z-[9999] w-full max-w-[900px] max-h-72 overflow-y-auto">
-                        {availableDrugs.filter(d => 
-                          d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                        ).length > 0 ? (
+                        {filteredDrugs.length > 0 ? (
                           <div className="divide-y divide-slate-700">
-                            {availableDrugs.filter(d => 
-                              d.name.toLowerCase().includes(medicineSearch.toLowerCase())
-                            ).map((d, index) => (
+                            {filteredDrugs.map((d, index) => (
                               <div
                                 key={d.id}
                                 onMouseDown={(e) => {
@@ -254,7 +382,7 @@ export default function PurchaseFromWholesaler() {
                                 }`}
                               >
                                 <div className="font-bold text-white text-base mb-2">{d.name}</div>
-                                <div className="grid grid-cols-6 gap-3 text-xs">
+                                <div className="grid grid-cols-8 gap-3 text-xs">
                                   <div>
                                     <div className="text-slate-500 mb-1">Company</div>
                                     <div className="text-slate-300 font-semibold">{d.company}</div>
@@ -264,8 +392,12 @@ export default function PurchaseFromWholesaler() {
                                     <div className="text-slate-300 font-mono">{d.batch}</div>
                                   </div>
                                   <div>
+                                    <div className="text-slate-500 mb-1">Mfg</div>
+                                    <div className="text-slate-300">{d.manufactureDate ? new Date(d.manufactureDate).toLocaleDateString() : '-'}</div>
+                                  </div>
+                                  <div>
                                     <div className="text-slate-500 mb-1">Expiry</div>
-                                    <div className="text-slate-300">{new Date(d.expiryDate).toLocaleDateString()}</div>
+                                    <div className="text-slate-300">{d.expiryDate ? new Date(d.expiryDate).toLocaleDateString() : '-'}</div>
                                   </div>
                                   <div>
                                     <div className="text-slate-500 mb-1">Price</div>
@@ -280,6 +412,14 @@ export default function PurchaseFromWholesaler() {
                                     <div className={`font-bold ${d.offer ? 'text-yellow-400' : 'text-slate-500'}`}>
                                       {d.offer ? d.offer : '-'}
                                     </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500 mb-1">Type</div>
+                                    <span
+                                      className={`inline-flex px-2 py-1 rounded-full text-[11px] font-semibold ${d.isNarcotic ? 'bg-red-600/20 text-red-300 border border-red-500/40' : 'bg-green-600/20 text-green-300 border border-green-500/40'}`}
+                                    >
+                                      {d.isNarcotic ? 'Narcotic' : 'Normal'}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -304,6 +444,7 @@ export default function PurchaseFromWholesaler() {
                     value={currentMedicine.quantity}
                     onChange={(e) => setCurrentMedicine(prev => ({ ...prev, quantity: e.target.value }))}
                     onKeyPress={handleQuantityKeyPress}
+                    disabled={!formData.wholesalerId || loadingMedicines}
                     className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                     placeholder="Qty"
                   />
@@ -311,6 +452,7 @@ export default function PurchaseFromWholesaler() {
                 <button
                   type="button"
                   onClick={addMedicineToOrder}
+                  disabled={!formData.wholesalerId || loadingMedicines}
                   className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 transition-all font-semibold shadow-lg"
                 >
                   ➕ Add
@@ -336,6 +478,8 @@ export default function PurchaseFromWholesaler() {
                         <th className="px-4 py-3 text-left text-sm font-bold text-slate-300">Medicine Name</th>
                         <th className="px-4 py-3 text-left text-sm font-bold text-slate-300">Company</th>
                         <th className="px-4 py-3 text-left text-sm font-bold text-slate-300">Batch</th>
+                        <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Type</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-slate-300">Mfg</th>
                         <th className="px-4 py-3 text-left text-sm font-bold text-slate-300">Expiry</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Qty</th>
                         <th className="px-4 py-3 text-center text-sm font-bold text-slate-300">Price (₹)</th>
@@ -347,21 +491,20 @@ export default function PurchaseFromWholesaler() {
                     </thead>
                     <tbody>
                       {formData.drugs.map((drug, idx) => {
-                        const drugInfo = availableDrugs.find(d => d.id === parseInt(drug.drugId))
+                        const drugInfo = availableDrugs.find(d => d.id === drug.drugId)
                         if (!drugInfo) return null
                         const amount = drugInfo.price * (drug.quantity || 0)
-                        
-                        // Calculate offer display
+
                         let qtyDisplay = drug.quantity || 0
                         if (drugInfo.offer && drug.quantity) {
                           const offerParts = drugInfo.offer.split('+')
                           const buyQty = parseInt(offerParts[0])
                           const freeQty = parseInt(offerParts[1])
-                          
+
                           if (parseInt(drug.quantity) >= buyQty) {
                             const sets = Math.floor(parseInt(drug.quantity) / buyQty)
                             const remaining = parseInt(drug.quantity) % buyQty
-                            
+
                             if (remaining === 0) {
                               qtyDisplay = `${drug.quantity}+${sets * freeQty}`
                             } else {
@@ -386,8 +529,18 @@ export default function PurchaseFromWholesaler() {
                             <td className="px-4 py-4 text-slate-300 text-sm font-mono">
                               {drugInfo.batch}
                             </td>
+                            <td className="px-4 py-4 text-center text-sm">
+                              <span
+                                className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${drugInfo.isNarcotic ? 'bg-red-600/20 text-red-300 border border-red-500/40' : 'bg-green-600/20 text-green-300 border border-green-500/40'}`}
+                              >
+                                {drugInfo.isNarcotic ? 'Narcotic' : 'Normal'}
+                              </span>
+                            </td>
                             <td className="px-4 py-4 text-slate-300 text-sm">
-                              {new Date(drugInfo.expiryDate).toLocaleDateString()}
+                              {drugInfo.manufactureDate ? new Date(drugInfo.manufactureDate).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-4 py-4 text-slate-300 text-sm">
+                              {drugInfo.expiryDate ? new Date(drugInfo.expiryDate).toLocaleDateString() : '-'}
                             </td>
                             <td className="px-4 py-4 text-center text-slate-300 font-semibold">
                               {qtyDisplay}
@@ -439,7 +592,8 @@ export default function PurchaseFromWholesaler() {
 
           <div className="flex justify-end gap-4">
             <button
-              type="reset"
+              type="button"
+              onClick={handleClear}
               className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-semibold"
             >
               Clear

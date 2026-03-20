@@ -14,6 +14,25 @@ export async function getRetailerPurchases(retailerId) {
   return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/purchases`)
 }
 
+export async function getRetailerWholesalers(retailerId) {
+  return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/wholesalers`)
+}
+
+export async function getRetailerWholesalerCatalog(retailerId, wholesalerId) {
+  return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/wholesalers/${encodeURIComponent(wholesalerId)}/catalog`)
+}
+
+export async function getRetailerSellCatalog(retailerId) {
+  return apiRequest(`/api/retailer/${encodeURIComponent(retailerId)}/sell-catalog`)
+}
+
+export async function createRetailerCustomerSale(payload) {
+  return apiRequest('/api/retailer/sales', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
 export async function createRetailerOrder(payload) {
   return apiRequest('/api/retailer/orders', {
     method: 'POST',
