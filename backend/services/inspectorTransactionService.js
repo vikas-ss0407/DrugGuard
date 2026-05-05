@@ -104,14 +104,31 @@ async function getInspectorWholesalerSales(district) {
   const normalizedTransactions = sortByCreatedAtDesc(transactions).map((item) => {
     const wholesaler = wholesalerMap.get(item.sellerId) || { name: item.sellerId || 'Unknown', licenseNo: '' }
     const retailer = retailerMap.get(item.buyerId) || { name: item.buyerId || 'Unknown', licenseNo: '' }
+    const items = Array.isArray(item.items)
+      ? item.items.map((entry, index) => ({
+          id: String(entry.id || entry.stockId || entry.medicineId || `item-${index}`),
+          medicineName: entry.medicineName || entry.productName || entry.name || entry.drug || '-',
+          quantity: Number(entry.quantity) || 0,
+          batch: entry.batch || '-',
+          rate: Number(entry.rate) || 0,
+          mrp: Number(entry.mrp) || 0,
+          expiryDate: entry.expiryDate || null
+        }))
+      : []
+
+    const fallbackProductName = items.length === 1 ? items[0].medicineName : ''
+    const productName = String(item.productName || fallbackProductName || '').trim() || '-'
+    const fallbackQuantity = items.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0)
+    const quantity = Number(item.quantity) > 0 ? Number(item.quantity) : fallbackQuantity
 
     return {
       id: item.id,
       billId: item.id,
       date: formatTransactionDate(item.createdAt),
       createdAt: item.createdAt || '',
-      productName: item.productName || '',
-      quantity: Number(item.quantity) || 0,
+      productName,
+      quantity,
+      items,
       wholesalerId: item.sellerId || '',
       wholesalerName: wholesaler.name,
       wholesalerLicenseNo: wholesaler.licenseNo,
@@ -144,14 +161,31 @@ async function getInspectorRetailerPurchases(district) {
   const normalizedTransactions = sortByCreatedAtDesc(transactions).map((item) => {
     const retailer = retailerMap.get(item.buyerId) || { name: item.buyerId || 'Unknown', licenseNo: '' }
     const wholesaler = wholesalerMap.get(item.sellerId) || { name: item.sellerId || 'Unknown', licenseNo: '' }
+    const items = Array.isArray(item.items)
+      ? item.items.map((entry, index) => ({
+          id: String(entry.id || entry.stockId || entry.medicineId || `item-${index}`),
+          medicineName: entry.medicineName || entry.productName || entry.name || entry.drug || '-',
+          quantity: Number(entry.quantity) || 0,
+          batch: entry.batch || '-',
+          rate: Number(entry.rate) || 0,
+          mrp: Number(entry.mrp) || 0,
+          expiryDate: entry.expiryDate || null
+        }))
+      : []
+
+    const fallbackProductName = items.length === 1 ? items[0].medicineName : ''
+    const productName = String(item.productName || fallbackProductName || '').trim() || '-'
+    const fallbackQuantity = items.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0)
+    const quantity = Number(item.quantity) > 0 ? Number(item.quantity) : fallbackQuantity
 
     return {
       id: item.id,
       billId: item.id,
       date: formatTransactionDate(item.createdAt),
       createdAt: item.createdAt || '',
-      productName: item.productName || '',
-      quantity: Number(item.quantity) || 0,
+      productName,
+      quantity,
+      items,
       retailerId: item.buyerId || '',
       retailerName: retailer.name,
       retailerLicenseNo: retailer.licenseNo,

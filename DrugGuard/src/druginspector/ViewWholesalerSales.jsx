@@ -5,6 +5,20 @@ function formatNumber(value) {
   return new Intl.NumberFormat('en-IN').format(Number(value) || 0)
 }
 
+function getProductLabel(tx) {
+  const direct = String(tx?.productName || '').trim()
+  if (direct && direct !== '-') {
+    return direct
+  }
+
+  if (Array.isArray(tx?.items) && tx.items.length > 0) {
+    const first = tx.items[0] || {}
+    return String(first.medicineName || first.productName || first.name || first.drug || '-').trim() || '-'
+  }
+
+  return '-'
+}
+
 function buildShops(transactions) {
   const byWholesaler = new Map()
 
@@ -134,25 +148,69 @@ export default function ViewWholesalerSales() {
   }
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
-      <div className="w-full">
+    <div 
+      style={{
+        position: 'relative',
+        minHeight: '100vh',
+        width: '100%',
+        backgroundColor: '#0F172A',
+        overflow: 'hidden',
+        color: '#f8fafc',
+        padding: '1rem'
+      }}
+      className="md:p-8"
+    >
+      {/* Background gradient overlays */}
+      <div 
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '384px',
+          height: '384px',
+          filter: 'blur(120px)',
+          opacity: 0.14,
+          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.4), transparent)',
+          pointerEvents: 'none'
+        }}
+      ></div>
+      <div 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: '400px',
+          height: '400px',
+          filter: 'blur(120px)',
+          opacity: 0.08,
+          background: 'radial-gradient(circle, rgba(56, 189, 248, 0.3), transparent)',
+          pointerEvents: 'none'
+        }}
+      ></div>
+
+      <div className="w-full relative z-10">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             {view !== 'shops' && (
               <button
                 onClick={view === 'bills' ? handleBackToShops : handleBackToBills}
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                className="px-4 py-2 rounded-xl transition-all font-bold"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: '#cbd5e1',
+                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                }}
               >
                 ← Back
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
+              <h1 className="text-3xl font-black mb-2 tracking-tight" style={{ color: '#ffffff' }}>
                 {view === 'shops' && 'Wholesaler Sales'}
                 {view === 'bills' && `Bills - ${selectedShop?.name}`}
                 {view === 'products' && `Bill Details - ${selectedBill?.billId}`}
               </h1>
-              <p className="text-slate-400">
+              <p className="font-semibold" style={{ color: '#94a3b8' }}>
                 {view === 'shops' && 'Data is loaded directly from database transactions'}
                 {view === 'bills' && 'Sales entries by selected wholesaler'}
                 {view === 'products' && 'Transaction product details'}
@@ -161,57 +219,104 @@ export default function ViewWholesalerSales() {
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Search by Product Name or Bill ID</h3>
+        <div 
+          className="rounded-3xl p-6 mb-6 shadow-xl"
+          style={{
+            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(24px)'
+          }}
+        >
+          <h3 className="text-lg font-black mb-4" style={{ color: '#ffffff' }}>Search by Product Name or Bill ID</h3>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search product or bill id..."
-            className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 rounded-2xl outline-none transition-all font-semibold"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#f8fafc'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'rgba(245, 158, 11, 0.9)'
+              e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.07)'
+              e.target.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.14)'
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+              e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.04)'
+              e.target.style.boxShadow = 'none'
+            }}
           />
 
           {searchQuery && (
             <div className="mt-6">
-              <h4 className="text-white font-semibold mb-4">Search Results ({filteredTransactions.length})</h4>
+              <h4 className="font-black mb-4" style={{ color: '#ffffff' }}>Search Results ({filteredTransactions.length})</h4>
               {filteredTransactions.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-700">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-slate-300">Bill ID</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Date</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Product</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Quantity</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
-                        <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
+                    <thead>
+                      <tr style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Bill ID</th>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Date</th>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Product</th>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Quantity</th>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Retailer</th>
+                        <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Wholesaler</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                          <td className="px-4 py-3 text-blue-400 font-semibold">{tx.billId}</td>
-                          <td className="px-4 py-3 text-slate-300">{tx.date || '-'}</td>
-                          <td className="px-4 py-3 text-slate-300 font-semibold">{tx.productName || '-'}</td>
-                          <td className="px-4 py-3 text-slate-300">{formatNumber(tx.quantity)}</td>
-                          <td className="px-4 py-3 text-slate-300">{tx.retailerName || '-'}</td>
-                          <td className="px-4 py-3 text-blue-400">{tx.wholesalerName || '-'}</td>
+                        <tr 
+                          key={tx.id} 
+                          className="transition-colors"
+                          style={{ 
+                            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                            background: 'rgba(255, 255, 255, 0.02)'
+                          }}
+                        >
+                          <td className="px-4 py-3 font-semibold" style={{ color: '#60a5fa' }}>{tx.billId}</td>
+                          <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{tx.date || '-'}</td>
+                          <td className="px-4 py-3 font-semibold" style={{ color: '#e2e8f0' }}>{getProductLabel(tx)}</td>
+                          <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{formatNumber(tx.quantity)}</td>
+                          <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{tx.retailerName || '-'}</td>
+                          <td className="px-4 py-3" style={{ color: '#60a5fa' }}>{tx.wholesalerName || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-slate-400 text-center py-4">No transactions found matching "{searchQuery}"</p>
+                <p className="text-center py-4" style={{ color: '#64748b' }}>No transactions found matching "{searchQuery}"</p>
               )}
             </div>
           )}
         </div>
 
-        {loadError && <div className="mb-6 rounded-lg border border-red-700 bg-red-900/40 p-4 text-red-200">{loadError}</div>}
+        {loadError && (
+          <div 
+            className="mb-6 rounded-2xl p-4 font-semibold"
+            style={{
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: 'rgba(127, 29, 29, 0.2)',
+              color: '#fca5a5'
+            }}
+          >
+            {loadError}
+          </div>
+        )}
 
         {isLoading && (
-          <div className="bg-slate-800 rounded-lg p-10 border border-slate-700 text-center text-slate-300">
+          <div 
+            className="rounded-3xl p-10 text-center font-semibold shadow-xl"
+            style={{
+              background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#94a3b8'
+            }}
+          >
             Loading wholesaler sales from database...
           </div>
         )}
@@ -222,33 +327,45 @@ export default function ViewWholesalerSales() {
               <div
                 key={shop.id}
                 onClick={() => handleShopClick(shop)}
-                className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-blue-500 cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-500/20"
+                className="rounded-3xl p-6 cursor-pointer transition-all"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 30px 80px rgba(0, 0, 0, 0.36)'
+                }}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-1">{shop.name}</h3>
-                    <p className="text-slate-400 text-sm">License: {shop.licenseNo || '-'}</p>
+                    <h3 className="text-xl font-black mb-1" style={{ color: '#ffffff' }}>{shop.name}</h3>
+                    <p className="text-sm" style={{ color: '#94a3b8' }}>License: {shop.licenseNo || '-'}</p>
                   </div>
                   <span className="text-3xl">🏭</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-700">
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                   <div>
-                    <p className="text-slate-400 text-xs mb-1">Total Bills</p>
-                    <p className="text-white font-bold text-lg">{shop.totalBills}</p>
+                    <p className="text-xs mb-1" style={{ color: '#94a3b8' }}>Total Bills</p>
+                    <p className="font-black text-lg" style={{ color: '#ffffff' }}>{shop.totalBills}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-xs mb-1">Total Qty Sold</p>
-                    <p className="text-green-400 font-bold text-lg">{formatNumber(shop.totalQuantity)}</p>
+                    <p className="text-xs mb-1" style={{ color: '#94a3b8' }}>Total Qty Sold</p>
+                    <p className="font-bold text-lg" style={{ color: '#4ade80' }}>{formatNumber(shop.totalQuantity)}</p>
                   </div>
                 </div>
                 <div className="mt-4 text-right">
-                  <span className="text-blue-400 text-sm">View Bills →</span>
+                  <span className="text-sm font-bold" style={{ color: '#3b82f6' }}>View Bills →</span>
                 </div>
               </div>
             ))}
 
             {shops.length === 0 && (
-              <div className="col-span-full bg-slate-800 rounded-lg p-10 border border-slate-700 text-center text-slate-400">
+              <div 
+                className="col-span-full rounded-3xl p-10 text-center font-semibold shadow-xl"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#94a3b8'
+                }}
+              >
                 No wholesaler sales found for your district.
               </div>
             )}
@@ -256,31 +373,49 @@ export default function ViewWholesalerSales() {
         )}
 
         {!isLoading && view === 'bills' && selectedShop && (
-          <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+          <div 
+            className="rounded-3xl overflow-hidden shadow-xl"
+            style={{
+              background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-700">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bill ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Retailer</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Product</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Quantity</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Action</th>
+                <thead>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Bill ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Retailer</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Product</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Quantity</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: '#94a3b8' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedShopTransactions.map((tx) => (
-                    <tr key={tx.id} className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                      <td className="px-6 py-4 text-blue-400 font-semibold">{tx.billId}</td>
-                      <td className="px-6 py-4 text-slate-300">{tx.date || '-'}</td>
-                      <td className="px-6 py-4 text-slate-300">{tx.retailerName || '-'}</td>
-                      <td className="px-6 py-4 text-slate-300">{tx.productName || '-'}</td>
-                      <td className="px-6 py-4 text-slate-300">{formatNumber(tx.quantity)}</td>
+                    <tr 
+                      key={tx.id} 
+                      className="transition-colors"
+                      style={{ 
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'rgba(255, 255, 255, 0.02)'
+                      }}
+                    >
+                      <td className="px-6 py-4 font-semibold" style={{ color: '#60a5fa' }}>{tx.billId}</td>
+                      <td className="px-6 py-4" style={{ color: '#e2e8f0' }}>{tx.date || '-'}</td>
+                      <td className="px-6 py-4" style={{ color: '#e2e8f0' }}>{tx.retailerName || '-'}</td>
+                      <td className="px-6 py-4" style={{ color: '#e2e8f0' }}>{getProductLabel(tx)}</td>
+                      <td className="px-6 py-4" style={{ color: '#e2e8f0' }}>{formatNumber(tx.quantity)}</td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleBillClick(tx)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors text-sm"
+                          className="px-4 py-2 rounded-xl transition-all text-sm font-bold"
+                          style={{
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            color: '#f59e0b',
+                            border: '1px solid rgba(245, 158, 11, 0.25)'
+                          }}
                         >
                           View Details
                         </button>
@@ -295,44 +430,61 @@ export default function ViewWholesalerSales() {
 
         {!isLoading && view === 'products' && selectedBill && (
           <div className="space-y-6">
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <div 
+              className="rounded-3xl p-6 shadow-xl"
+              style={{
+                background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Bill ID</p>
-                  <p className="text-white font-bold text-lg">{selectedBill.billId}</p>
+                  <p className="text-sm mb-1" style={{ color: '#94a3b8' }}>Bill ID</p>
+                  <p className="font-black text-lg" style={{ color: '#ffffff' }}>{selectedBill.billId}</p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Date</p>
-                  <p className="text-white font-semibold">{selectedBill.date || '-'}</p>
+                  <p className="text-sm mb-1" style={{ color: '#94a3b8' }}>Date</p>
+                  <p className="font-semibold" style={{ color: '#e2e8f0' }}>{selectedBill.date || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Retailer</p>
-                  <p className="text-white font-semibold">{selectedBill.retailerName || '-'}</p>
+                  <p className="text-sm mb-1" style={{ color: '#94a3b8' }}>Retailer</p>
+                  <p className="font-semibold" style={{ color: '#e2e8f0' }}>{selectedBill.retailerName || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Quantity</p>
-                  <p className="text-green-400 font-bold text-xl">{formatNumber(selectedBill.quantity)}</p>
+                  <p className="text-sm mb-1" style={{ color: '#94a3b8' }}>Quantity</p>
+                  <p className="font-bold text-xl" style={{ color: '#4ade80' }}>{formatNumber(selectedBill.quantity)}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700">
+            <div 
+              className="rounded-3xl overflow-hidden shadow-xl"
+              style={{
+                background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.88))',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-slate-300">Product Name</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Quantity</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Wholesaler</th>
-                      <th className="px-4 py-3 text-left text-slate-300">Retailer</th>
+                  <thead>
+                    <tr style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                      <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Product Name</th>
+                      <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Quantity</th>
+                      <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Wholesaler</th>
+                      <th className="px-4 py-3 text-left" style={{ color: '#94a3b8' }}>Retailer</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t border-slate-700 hover:bg-slate-700 transition-colors">
-                      <td className="px-4 py-3 text-white font-semibold">{selectedBill.productName || '-'}</td>
-                      <td className="px-4 py-3 text-slate-300">{formatNumber(selectedBill.quantity)}</td>
-                      <td className="px-4 py-3 text-slate-300">{selectedBill.wholesalerName || '-'}</td>
-                      <td className="px-4 py-3 text-slate-300">{selectedBill.retailerName || '-'}</td>
+                    <tr 
+                      style={{ 
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'rgba(255, 255, 255, 0.02)'
+                      }}
+                    >
+                      <td className="px-4 py-3 font-semibold" style={{ color: '#ffffff' }}>{getProductLabel(selectedBill)}</td>
+                      <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{formatNumber(selectedBill.quantity)}</td>
+                      <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{selectedBill.wholesalerName || '-'}</td>
+                      <td className="px-4 py-3" style={{ color: '#e2e8f0' }}>{selectedBill.retailerName || '-'}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -344,3 +496,5 @@ export default function ViewWholesalerSales() {
     </div>
   )
 }
+
+
