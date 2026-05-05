@@ -412,69 +412,71 @@ System Version: 1.0
   }
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen w-full overflow-x-hidden">
-      <div className="w-full max-w-6xl mx-auto">
+    <div className="create-license-page min-h-screen w-full bg-[#0F172A] p-4 md:p-8 relative overflow-hidden text-white selection:bg-amber-500/30">
+      <div className="absolute top-0 left-0 w-96 h-96 blur-[120px] opacity-20 bg-gradient-to-br from-amber-500 to-cyan-500"></div>
+      <div className="absolute bottom-0 right-0 w-[30rem] h-[30rem] blur-[140px] opacity-10 bg-gradient-to-tr from-white to-amber-500"></div>
+      <div className="create-license-shell w-full max-w-[1600px] mx-auto relative z-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Create New License</h1>
-          <p className="text-slate-400">Complete all steps to register a new wholesale or retail license</p>
+        <div className="license-hero mb-8">
+          <h1 className="license-title text-3xl md:text-4xl font-black mb-2 tracking-tighter uppercase">Create New License</h1>
+          <p className="license-subtitle text-slate-400 font-semibold max-w-3xl">Complete all steps to register a new wholesale or retail license inside the same secure DrugGuard workspace.</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="flex justify-between mb-8">
+        <div className="license-stepper mb-8">
           {['Establishment Details', 'Pharmacist Details', 'Infrastructure', 'Equipment & Storage', 'Login Credentials'].map((label, idx) => (
             <div key={idx} className="flex items-center flex-1">
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
-                step > idx + 1 ? 'bg-green-500 text-white' : step === idx + 1 ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
+              <div className={`license-step-dot flex items-center justify-center w-10 h-10 rounded-full font-black ${
+                step > idx + 1 ? 'bg-emerald-500 text-[#0F172A]' : step === idx + 1 ? 'bg-amber-500 text-[#0F172A]' : 'bg-white/5 text-slate-500 border border-white/10'
               }`}>
                 {step > idx + 1 ? '✓' : idx + 1}
               </div>
-              {idx < 4 && <div className={`flex-1 h-1 mx-2 ${step > idx + 1 ? 'bg-green-500' : 'bg-slate-700'}`}></div>}
-              <p className="text-sm text-slate-400 ml-2">{label}</p>
+              {idx < 4 && <div className={`license-step-line flex-1 h-1 mx-2 rounded-full ${step > idx + 1 ? 'bg-emerald-500' : 'bg-white/10'}`}></div>}
+              <p className="license-step-label text-[10px] md:text-xs text-slate-400 ml-2 font-bold uppercase tracking-[0.18em]">{label}</p>
             </div>
           ))}
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-slate-800 rounded-lg p-8 border border-slate-700">
+        <form onSubmit={handleSubmit} className="license-form bg-[#1E293B]/70 rounded-[2rem] p-6 md:p-10 border border-white/10 shadow-2xl shadow-black/30 backdrop-blur-xl">
           
           {/* Step 1: Basic Establishment Details */}
           {step === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white mb-6">A. Basic Establishment Details</h2>
+            <div className="license-section space-y-6">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">A. Basic Establishment Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Full Name (License Holder) *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name (License Holder) *</label>
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.fullName && <p className="text-red-400 text-sm mt-1">{errors.fullName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Date of Birth *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Date of Birth *</label>
                   <input
                     type="date"
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.dateOfBirth && <p className="text-red-400 text-sm mt-1">{errors.dateOfBirth}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">License Type *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">License Type *</label>
                   <select
                     name="licenseType"
                     value={formData.licenseType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   >
                     <option value="">Select Type</option>
                     <option value="Wholesale">Wholesale</option>
@@ -484,24 +486,24 @@ System Version: 1.0
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Shop / Firm Name *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Shop / Firm Name *</label>
                   <input
                     type="text"
                     name="shopFirmName"
                     value={formData.shopFirmName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.shopFirmName && <p className="text-red-400 text-sm mt-1">{errors.shopFirmName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Ownership Type *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Ownership Type *</label>
                   <select
                     name="ownershipType"
                     value={formData.ownershipType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   >
                     <option value="">Select Type</option>
                     <option value="Individual">Individual</option>
@@ -512,101 +514,101 @@ System Version: 1.0
                 </div>
               </div>
 
-              <div className="border-t border-slate-700 pt-6 mt-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Shop Address</h3>
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-xl font-black text-slate-900 mb-4 tracking-tight">Shop Address</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-slate-300 mb-2">Door No *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Door No *</label>
                     <input
                       type="text"
                       name="doorNo"
                       value={formData.doorNo}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.doorNo && <p className="text-red-400 text-sm mt-1">{errors.doorNo}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">Area *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Area *</label>
                     <input
                       type="text"
                       name="area"
                       value={formData.area}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.area && <p className="text-red-400 text-sm mt-1">{errors.area}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">City / Town *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">City / Town *</label>
                     <input
                       type="text"
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.city && <p className="text-red-400 text-sm mt-1">{errors.city}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">Post *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Post *</label>
                     <input
                       type="text"
                       name="post"
                       value={formData.post}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.post && <p className="text-red-400 text-sm mt-1">{errors.post}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">District *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">District *</label>
                     <input
                       type="text"
                       name="district"
                       value={formData.district}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.district && <p className="text-red-400 text-sm mt-1">{errors.district}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">State *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">State *</label>
                     <input
                       type="text"
                       name="state"
                       value={formData.state}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.state && <p className="text-red-400 text-sm mt-1">{errors.state}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">PIN Code *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">PIN Code *</label>
                     <input
                       type="text"
                       name="pinCode"
                       value={formData.pinCode}
                       onChange={handleInputChange}
                       maxLength="6"
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.pinCode && <p className="text-red-400 text-sm mt-1">{errors.pinCode}</p>}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-slate-700 pt-6 mt-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Owner Documents & Identification</h3>
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-xl font-black text-slate-900 mb-4 tracking-tight">Owner Documents & Identification</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-slate-300 mb-2">PAN Card Number *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">PAN Card Number *</label>
                     <input
                       type="text"
                       name="ownerPanCard"
@@ -614,13 +616,13 @@ System Version: 1.0
                       onChange={handleInputChange}
                       placeholder="e.g., AAAPA1234A"
                       maxLength="10"
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.ownerPanCard && <p className="text-red-400 text-sm mt-1">{errors.ownerPanCard}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">Aadhaar Card Number *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Aadhaar Card Number *</label>
                     <input
                       type="text"
                       name="ownerAadharNumber"
@@ -628,7 +630,7 @@ System Version: 1.0
                       onChange={handleInputChange}
                       maxLength="12"
                       placeholder="XXXX XXXX XXXX"
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.ownerAadharNumber && <p className="text-red-400 text-sm mt-1">{errors.ownerAadharNumber}</p>}
                   </div>
@@ -636,30 +638,30 @@ System Version: 1.0
                 </div>
               </div>
 
-              <div className="border-t border-slate-700 pt-6 mt-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Contact Details</h3>
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-xl font-black text-slate-900 mb-4 tracking-tight">Contact Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-slate-300 mb-2">Mobile Number *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mobile Number *</label>
                     <input
                       type="tel"
                       name="mobileNumber"
                       value={formData.mobileNumber}
                       onChange={handleInputChange}
                       maxLength="10"
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.mobileNumber && <p className="text-red-400 text-sm mt-1">{errors.mobileNumber}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 mb-2">Email ID *</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email ID *</label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                     />
                     {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
                   </div>
@@ -670,41 +672,41 @@ System Version: 1.0
 
           {/* Step 2: Pharmacist Details */}
           {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white mb-6">B. Pharmacist / Competent Person Details</h2>
+            <div className="license-section space-y-6">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">B. Pharmacist / Competent Person Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Pharmacist / Competent Person Name *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Pharmacist / Competent Person Name *</label>
                   <input
                     type="text"
                     name="pharmacistName"
                     value={formData.pharmacistName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.pharmacistName && <p className="text-red-400 text-sm mt-1">{errors.pharmacistName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Registration ID (State Pharmacy Council) *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Registration ID (State Pharmacy Council) *</label>
                   <input
                     type="text"
                     name="registrationId"
                     value={formData.registrationId}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.registrationId && <p className="text-red-400 text-sm mt-1">{errors.registrationId}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Qualification *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Qualification *</label>
                   <select
                     name="qualification"
                     value={formData.qualification}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   >
                     <option value="">Select Qualification</option>
                     <option value="D.Pharm">D.Pharm</option>
@@ -715,20 +717,20 @@ System Version: 1.0
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Years of Experience *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Years of Experience *</label>
                   <input
                     type="number"
                     name="yearsOfExperience"
                     value={formData.yearsOfExperience}
                     onChange={handleInputChange}
                     min="0"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.yearsOfExperience && <p className="text-red-400 text-sm mt-1">{errors.yearsOfExperience}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Aadhaar Number *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Aadhaar Number *</label>
                   <input
                     type="text"
                     name="aadhaarNumber"
@@ -736,56 +738,56 @@ System Version: 1.0
                     onChange={handleInputChange}
                     maxLength="12"
                     placeholder="XXXX XXXX XXXX"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.aadhaarNumber && <p className="text-red-400 text-sm mt-1">{errors.aadhaarNumber}</p>}
-                  <p className="text-slate-500 text-xs mt-1">Will be stored in masked format</p>
+                  <p className="text-slate-400 text-xs mt-1 font-semibold">Will be stored in masked format</p>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Mobile Number *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mobile Number *</label>
                   <input
                     type="tel"
                     name="pharmacistMobile"
                     value={formData.pharmacistMobile}
                     onChange={handleInputChange}
                     maxLength="10"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.pharmacistMobile && <p className="text-red-400 text-sm mt-1">{errors.pharmacistMobile}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Email ID *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email ID *</label>
                   <input
                     type="email"
                     name="pharmacistEmail"
                     value={formData.pharmacistEmail}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.pharmacistEmail && <p className="text-red-400 text-sm mt-1">{errors.pharmacistEmail}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Date of Birth *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Date of Birth *</label>
                   <input
                     type="date"
                     name="pharmacistDateOfBirth"
                     value={formData.pharmacistDateOfBirth}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.pharmacistDateOfBirth && <p className="text-red-400 text-sm mt-1">{errors.pharmacistDateOfBirth}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Employment Type *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Employment Type *</label>
                   <select
                     name="employmentType"
                     value={formData.employmentType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   >
                     <option value="">Select Type</option>
                     <option value="Full-time">Full-time</option>
@@ -800,25 +802,25 @@ System Version: 1.0
 
           {/* Step 3: Shop Infrastructure */}
           {step === 3 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white mb-6">C. Shop Infrastructure Details</h2>
+            <div className="license-section space-y-6">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">C. Shop Infrastructure Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Total Shop Area (Square Feet) *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Total Shop Area (Square Feet) *</label>
                   <input
                     type="number"
                     name="totalShopArea"
                     value={formData.totalShopArea}
                     onChange={handleInputChange}
                     min="0"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.totalShopArea && <p className="text-red-400 text-sm mt-1">{errors.totalShopArea}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Shop Length (ft) *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Shop Length (ft) *</label>
                   <input
                     type="number"
                     name="shopLength"
@@ -826,13 +828,13 @@ System Version: 1.0
                     onChange={handleInputChange}
                     min="0"
                     step="0.1"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.shopLength && <p className="text-red-400 text-sm mt-1">{errors.shopLength}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Shop Breadth (ft) *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Shop Breadth (ft) *</label>
                   <input
                     type="number"
                     name="shopBreadth"
@@ -840,7 +842,7 @@ System Version: 1.0
                     onChange={handleInputChange}
                     min="0"
                     step="0.1"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.shopBreadth && <p className="text-red-400 text-sm mt-1">{errors.shopBreadth}</p>}
                 </div>
@@ -853,9 +855,9 @@ System Version: 1.0
                     name="storageAreaAvailable"
                     checked={formData.storageAreaAvailable}
                     onChange={handleInputChange}
-                    className="w-5 h-5 bg-slate-700 border border-slate-600 rounded text-blue-500 focus:ring-2 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="ml-3 text-slate-300">Storage Area Available</label>
+                  <label className="ml-3 text-slate-600 font-semibold">Storage Area Available</label>
                 </div>
 
                 <div className="flex items-center">
@@ -864,9 +866,9 @@ System Version: 1.0
                     name="separateScheduleDrugStorage"
                     checked={formData.separateScheduleDrugStorage}
                     onChange={handleInputChange}
-                    className="w-5 h-5 bg-slate-700 border border-slate-600 rounded text-blue-500 focus:ring-2 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="ml-3 text-slate-300">Separate Schedule Drug Storage</label>
+                  <label className="ml-3 text-slate-600 font-semibold">Separate Schedule Drug Storage</label>
                 </div>
 
                 <div className="flex items-center">
@@ -875,9 +877,9 @@ System Version: 1.0
                     name="powerBackupAvailable"
                     checked={formData.powerBackupAvailable}
                     onChange={handleInputChange}
-                    className="w-5 h-5 bg-slate-700 border border-slate-600 rounded text-blue-500 focus:ring-2 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="ml-3 text-slate-300">Power Backup Available</label>
+                  <label className="ml-3 text-slate-600 font-semibold">Power Backup Available</label>
                 </div>
               </div>
             </div>
@@ -885,48 +887,48 @@ System Version: 1.0
 
           {/* Step 4: Equipment & Storage */}
           {step === 4 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white mb-6">D. Equipment & Storage Details</h2>
+            <div className="license-section space-y-6">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">D. Equipment & Storage Details</h2>
               
               {/* Air Conditioner Section */}
-              <div className="border border-slate-700 rounded-lg p-6 bg-slate-750">
+              <div className="border border-slate-100 rounded-3xl p-6 bg-slate-50/70">
                 <div className="flex items-center mb-4">
                   <input
                     type="checkbox"
                     name="acAvailable"
                     checked={formData.acAvailable}
                     onChange={handleInputChange}
-                    className="w-5 h-5 bg-slate-700 border border-slate-600 rounded text-blue-500 focus:ring-2 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="ml-3 text-lg font-semibold text-white">Air Conditioner Available</label>
+                  <label className="ml-3 text-lg font-black text-slate-900">Air Conditioner Available</label>
                 </div>
 
                 {formData.acAvailable && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                     <div>
-                      <label className="block text-slate-300 mb-2">AC Brand</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">AC Brand</label>
                       <input
                         type="text"
                         name="acBrand"
                         value={formData.acBrand}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-2">AC Model</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">AC Model</label>
                       <input
                         type="text"
                         name="acModel"
                         value={formData.acModel}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-2">AC Capacity (Ton)</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">AC Capacity (Ton)</label>
                       <input
                         type="number"
                         name="acCapacity"
@@ -934,7 +936,7 @@ System Version: 1.0
                         onChange={handleInputChange}
                         step="0.5"
                         min="0"
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
                   </div>
@@ -942,63 +944,63 @@ System Version: 1.0
               </div>
 
               {/* Refrigerator Section */}
-              <div className="border border-slate-700 rounded-lg p-6 bg-slate-750">
+              <div className="border border-slate-100 rounded-3xl p-6 bg-slate-50/70">
                 <div className="flex items-center mb-4">
                   <input
                     type="checkbox"
                     name="refrigeratorAvailable"
                     checked={formData.refrigeratorAvailable}
                     onChange={handleInputChange}
-                    className="w-5 h-5 bg-slate-700 border border-slate-600 rounded-lg text-blue-500 focus:ring-2 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="ml-3 text-lg font-semibold text-white">Refrigerator Available</label>
+                  <label className="ml-3 text-lg font-black text-slate-900">Refrigerator Available</label>
                 </div>
 
                 {formData.refrigeratorAvailable && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                     <div>
-                      <label className="block text-slate-300 mb-2">Brand</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Brand</label>
                       <input
                         type="text"
                         name="refrigeratorBrand"
                         value={formData.refrigeratorBrand}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-2">Model</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Model</label>
                       <input
                         type="text"
                         name="refrigeratorModel"
                         value={formData.refrigeratorModel}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-2">Capacity (Liters)</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Capacity (Liters)</label>
                       <input
                         type="number"
                         name="refrigeratorCapacity"
                         value={formData.refrigeratorCapacity}
                         onChange={handleInputChange}
                         min="0"
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-2">Temperature Range</label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Temperature Range</label>
                       <input
                         type="text"
                         name="refrigeratorTempRange"
                         value={formData.refrigeratorTempRange}
                         onChange={handleInputChange}
                         placeholder="e.g., 2°C to 8°C"
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                       />
                     </div>
                   </div>
@@ -1009,47 +1011,47 @@ System Version: 1.0
 
           {/* Step 5: Login Credentials */}
           {step === 5 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white mb-6">E. Login Credentials</h2>
+            <div className="license-section space-y-6">
+              <h2 className="text-2xl font-black text-white mb-6 tracking-tight">E. Login Credentials</h2>
               <p className="text-slate-400 mb-6">Create login credentials for this shop. This will be used to access the system.</p>
               
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <label className="block text-slate-300 mb-2">Login Username *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Login Username *</label>
                   <input
                     type="text"
                     name="loginEmail"
                     value={formData.loginEmail}
                     onChange={handleInputChange}
                     placeholder="Enter username (license username)"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.loginEmail && <p className="text-red-400 text-sm mt-1">{errors.loginEmail}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Password *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password *</label>
                   <input
                     type="password"
                     name="loginPassword"
                     value={formData.loginPassword}
                     onChange={handleInputChange}
                     placeholder="Enter password (min 8 characters)"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.loginPassword && <p className="text-red-400 text-sm mt-1">{errors.loginPassword}</p>}
-                  <p className="text-slate-500 text-xs mt-1">Password must be at least 8 characters long</p>
+                  <p className="text-slate-400 text-xs mt-1 font-semibold">Password must be at least 8 characters long</p>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-2">Confirm Password *</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Confirm Password *</label>
                   <input
                     type="password"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     placeholder="Re-enter password"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-800 font-semibold"
                   />
                   {errors.confirmPassword && <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>}
                 </div>
@@ -1058,9 +1060,9 @@ System Version: 1.0
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
+          <div className="license-actions flex justify-between mt-8 pt-6 border-t border-white/10">
             {submitError && (
-              <div className="w-full mb-4 p-3 bg-red-900 border border-red-700 rounded text-red-200">
+              <div className="license-alert w-full mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-300 font-semibold">
                 ❌ {submitError}
               </div>
             )}
@@ -1070,7 +1072,7 @@ System Version: 1.0
                   type="button"
                   onClick={handleBack}
                   disabled={isSubmitting}
-                  className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50"
+                  className="license-button license-button-secondary px-6 py-3 rounded-2xl transition-all font-bold disabled:opacity-50"
                 >
                   ← Previous
                 </button>
@@ -1081,7 +1083,7 @@ System Version: 1.0
                   type="button"
                   onClick={handleNext}
                   disabled={isSubmitting}
-                  className="ml-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                  className="license-button license-button-primary ml-auto px-6 py-3 rounded-2xl transition-all font-black tracking-wide disabled:opacity-50"
                 >
                   Next →
                 </button>
@@ -1089,7 +1091,7 @@ System Version: 1.0
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="ml-auto px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="license-button license-button-submit ml-auto px-8 py-3 rounded-2xl transition-all font-black tracking-wide disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
@@ -1108,3 +1110,4 @@ System Version: 1.0
     </div>
   )
 }
+
