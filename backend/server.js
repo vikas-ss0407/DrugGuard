@@ -12,7 +12,15 @@ const { ensureManufacturerCatalogSeeded } = require('./controllers/wholesalerCon
 const app = express()
 const PORT = process.env.PORT || 5000
 
-app.use(cors())
+// Configure CORS with frontend URL
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'https://drugguard-dotf.onrender.com',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}
+app.use(cors(corsOptions))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
