@@ -150,6 +150,22 @@
   accent-color: #f59e0b;
 }
 
+.create-license-page .license-form select {
+  color-scheme: light;
+}
+
+.create-license-page .license-form select option {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  padding: 8px;
+}
+
+.create-license-page .license-form select option:checked {
+  background: linear-gradient(#1e293b, #1e293b);
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
 .create-license-page .license-form .bg-slate-50,
 .create-license-page .license-form .bg-slate-50\/70,
 .create-license-page .license-form .bg-white,
